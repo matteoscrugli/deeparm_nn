@@ -1,3 +1,17 @@
+# custom
+dataset/
+testset/
+output/
+input/
+removeme/
+temp/
+.ftpconfig
+.ftpconfig.cson
+.ftpignore
+id_rsa
+.DS_Store
+.git
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
