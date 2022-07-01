@@ -12,6 +12,11 @@ import matplotlib.pyplot as plt
 
 
 
+labeling_th = 1000
+labeling_ignore = 150
+
+
+
 def rotation_matrix_from_vectors(vec1, vec2):
     """ Find the rotation matrix that aligns vec1 to vec2
     :param vec1: A 3d "source" vector
@@ -33,12 +38,16 @@ parser.add_argument('-i','--input', dest='input', required=True, nargs='*', help
 parser.add_argument('-m','--median', dest='median', default=1, type=int, help='plot median data')
 parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calibration file')
 parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
+parser.add_argument('-l','--labeling', dest='labeling', default='', action='store_true', help='enable labeling')
+parser.add_argument('-L','--Labeling', dest='Labeling', default='', action='store_true', help='enable labeling and save results')
 args = parser.parse_args()
 
 session_input = args.input
 session_median = args.median
 session_calibrate = args.calibrate
 session_gforce = args.gforce
+session_labeling = args.labeling
+session_Labeling = args.Labeling
 
 
 
@@ -80,15 +89,9 @@ for i in session_input:
 
 
 
-# for folder in os.listdir('dataset/test'):
-#     if session_path == None or f'dataset/test/{folder}' in session_path:
-#         if os.path.isdir(f'dataset/test/{folder}'):
-#             for file in os.listdir(f'dataset/test/{folder}'):
-#                 if session_file == None or f'dataset/test/{folder}/{file}' in session_file:
 for i in data_items:
     with open(i, 'r') as json_file:
         history = json.load(json_file)
-    # print(f"dataset/test/{folder}/{file}: [{len(history['data']['x'])}, {len(history['data']['y'])}, {len(history['data']['z'])}]")
 
     mpl.rcParams['legend.fontsize'] = 10
 
@@ -103,8 +106,6 @@ for i in data_items:
             x_temp.append(statistics.median(history['data']['x'][i : i + session_median]))
             y_temp.append(statistics.median(history['data']['y'][i : i + session_median]))
             z_temp.append(statistics.median(history['data']['z'][i : i + session_median]))
-
-        # ax.plot(x_m, y_m, z_m, label='parametric curve')
 
     else:
         x_temp = history['data']['x']
@@ -128,11 +129,26 @@ for i in data_items:
         y = y_temp
         z = z_temp
 
-        # temp = [np.matmul(np.array([x_i, y_i, z_i]), calibration_matrix) for x_i, y_i, z_i in zip(x_temp, y_temp, z_temp)]
-        # x = [ for [x_i, y_i, z_i] in temp]
-
     module = [int(math.sqrt(x_i*x_i + y_i*y_i + z_i*z_i)) for x_i, y_i, z_i in zip(x, y, z)]
 
+    if 'events' not in history and (session_labeling or session_Labeling):
+        # if not os.path.isfile(i.replace('.json', '_labeled.json')):
+        index = []
+        index_ignore = 0
+        fall_ignore = True
+        for j, m in enumerate(module):
+            if j >= index_ignore:
+                if m > labeling_th:
+                    if not fall_ignore:
+                        fall_ignore = True
+                        index.append(module[j : j + labeling_ignore].index(max(module[j : j + labeling_ignore])) + j)
+                        index_ignore = j + labeling_ignore
+                else:
+                    fall_ignore = False
+        history['events'] = index
+        if session_Labeling:
+            with open(i, 'w') as json_file: # .replace('.json', '_labeled.json')
+                json.dump(history, json_file, ensure_ascii=False, indent = 4) # , indent = 4
 
     fig = plt.figure()
 
@@ -149,46 +165,7 @@ for i in data_items:
 
     ax1.set_xlabel("Time")
     ax1.set_ylabel("Amplitude")
-    ax1.legend(['x', 'y', 'z', 'module'])
+    ax1.legend(['x', 'y', 'z', 'module'], loc='lower right')
 
     fig.tight_layout()
-    plt.show()
-
-    exit()
-
-    continue
-
-    ax = fig.gca(projection='3d')
-    ax.set(title = f'Class: {os.path.dirname(i).split("/")[-1]}\nFile: {os.path.basename(i)}')
-    ax.set_zlabel('Time')
-
-    if session_median > 1:
-        z = range(history['samples'])
-        x = [history['data']['x'][i] for i in z]
-        y = [history['data']['y'][i] for i in z]
-
-        x_m = []
-        y_m = []
-        z_m = []
-
-        for i in z:
-            if i + session_median > history['samples']:
-                break
-            x_temp.append(statistics.median(x[i : i + session_median]))
-            y_temp.append(statistics.median(y[i : i + session_median]))
-            z_temp.append(i)
-
-        ax.plot(x_m, y_m, z_m, label='parametric curve')
-
-    else:
-        z = range(history['samples'])
-        x = [history['data']['x'][i] for i in z]
-        y = [history['data']['y'][i] for i in z]
-
-        ax.plot(x, y, z, label='parametric curve')
-
-    # fig.tight_layout()
-    figManager = plt.get_current_fig_manager()
-    # figManager.window.showMaximized()
-    plt.tight_layout()
     plt.show()
