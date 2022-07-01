@@ -15,7 +15,7 @@
     "augmentation_rsize": false,
     "augmentation_shift": false,
     "augmentation_rotat": false,
-    "random_seed": 4,
+    "random_seed": 3,
     "batch_size": 32,
     "normalization": false,
     "conv_indim": 47,
@@ -34,9 +34,9 @@
     "optimizer": "Adadelta (Parameter Group 0, eps: 1e-06, lr: 1.0, rho: 0.9, weight_decay: 0)",
     "criterion": "CrossEntropyLoss()",
     "training_acc": 1.0,
-    "validation_acc": 0.9,
-    "training_loss": 0.00013608005974674597,
-    "validation_loss": 6.417518306989223e-05,
-    "floating_point_accuracy": 0.9,
+    "validation_acc": 0.6,
+    "training_loss": 7.714070779911708e-05,
+    "validation_loss": 3.491649476927705e-05,
+    "floating_point_accuracy": 0.6,
     "fixed_point_accuracy": 0.0
 }

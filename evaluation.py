@@ -52,6 +52,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-t','--train', dest='train', required=True, help="training session path")
 parser.add_argument('-i','--input', dest='input', required=True, nargs='*', help="input (folders or files)")
 parser.add_argument('--csort', dest='csort', action='store_true', help="sort for class")
+
+parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calibration file')
+parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
+
 args = parser.parse_args()
 
 session_train = args.train
@@ -170,6 +174,20 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 
 criterion = nn.CrossEntropyLoss()
 
+def rotation_matrix_from_vectors(vec1, vec2):
+    """ Find the rotation matrix that aligns vec1 to vec2
+    :param vec1: A 3d "source" vector
+    :param vec2: A 3d "destination" vector
+    :return mat: A transform matrix (3x3) which when applied to vec1, aligns it with vec2.
+    """
+    a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (vec2 / np.linalg.norm(vec2)).reshape(3)
+    v = np.cross(a, b)
+    c = np.dot(a, b)
+    s = np.linalg.norm(v)
+    kmat = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+    rotation_matrix = np.eye(3) + kmat + kmat.dot(kmat) * ((1 - c) / (s ** 2))
+    return rotation_matrix
+
 
 
 
@@ -199,6 +217,10 @@ frame_len_sec = json_train['frame_len_sec']
 frame_shift_sec = json_train['frame_shift_sec']
 downscaling = json_train['downscaling']
 # median = json_train['median']
+
+calibrate = args.calibrate
+gforce = args.gforce
+
 try:
     median = json_train['median'] # fixme
 except:
@@ -209,6 +231,33 @@ augmentation_rotat = json_train['augmentation_rotat'] if json_train['augmentatio
 
 
 
+if calibrate:
+    calibration_items = []
+    calibration_x = 0
+    calibration_y = 0
+    calibration_z = 0
+    for i in calibrate:
+        if os.path.isfile(i) and i not in calibration_items:
+            calibration_items.append(i)
+        for dirpath, dirnames, filenames in os.walk(i):
+            for filename in [f for f in filenames if f.endswith(".json")]:
+                if os.path.join(dirpath, filename) not in calibration_items: # dirpath.split('/')[-1] in dataset_labels
+                    calibration_items.append(os.path.join(dirpath, filename))
+    for i in calibration_items:
+        with open(i, 'r') as json_file:
+            history = json.load(json_file)
+            calibration_x += statistics.median(history['data']['x'])
+            calibration_y += statistics.median(history['data']['y'])
+            calibration_z += statistics.median(history['data']['z'])
+    if calibration_items:
+        calibration_x = calibration_x / len(calibration_items)
+        calibration_y = calibration_y / len(calibration_items)
+        calibration_z = calibration_z / len(calibration_items)
+
+    calibration_matrix = rotation_matrix_from_vectors([0, 0 , 1], [calibration_x, calibration_y, calibration_z])
+
+
+
 data_items = []
 data_class = []
 data_files = []
@@ -216,137 +265,157 @@ data_files = []
 for dataset in dataset_path:
     for dirpath, dirnames, filenames in os.walk(dataset):
         for filename in [f for f in filenames if f.endswith(".json")]:
-            if dirpath.split('/')[-1] in dataset_labels:
-                data_items.append(os.path.join(dirpath, filename)),
-                data_class.append(dirpath.split('/')[-1]),
+            if dirpath.split('/')[-1] in dataset_labels and filename not in data_files:
+                data_items.append(os.path.join(dirpath, filename))
+                data_class.append(dirpath.split('/')[-1])
                 data_files.append(filename)
 
-# [
-#     [
-#         (
-#             data_items.append(f'./dataset/raw/{temp_item1}/{temp_item2}'),
-#             data_class.append(f'{temp_item1}'),
-#             data_files.append(f'{temp_item2}')
-#         )
-#         for temp_item2 in os.listdir(f'./dataset/raw/{temp_item1}') if os.path.isfile(os.path.join(f'./dataset/raw/{temp_item1}', temp_item2))
-#     ] for temp_item1 in os.listdir('./dataset/raw/') if os.path.isdir(f'dataset/raw/{temp_item1}') and temp_item1 in dataset_labels
-# ]
 
 
+X_train = []
+M_train = []
+Y_train = []
+C_train = []
+R_train = []
 
-if files_split:
-    X_train = []
-    Y_train = []
-    C_train = []
-    R_train = []
+X_valid = []
+M_valid = []
+Y_valid = []
+C_valid = []
+R_valid = []
 
-    X_valid = []
-    Y_valid = []
-    C_valid = []
-    R_valid = []
+if random_seed == None:
+    random_seed = 0
+    balanced = False
+    while not balanced:
+        np.random.seed(random_seed)
 
-    temp_val = 0
-    temp_cnt = 0
+        temp_list = list(zip(data_items, data_class, data_files))
+        np.random.shuffle(temp_list)
+        temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
 
+        temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
+        temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
 
+        temp_list = []
 
+        for l in dataset_labels:
+            temp_list.append(temp_data_class_train.count(l))
+
+        if (max(temp_list) - min(temp_list)) <= 1 and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
+            if 'B' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
+                if temp_list[0] == max(temp_list) and temp_list[-1] == max(temp_list):
+                    balanced = True
+            else:
+                balanced = True
+        else:
+            random_seed += 1
+else:
     np.random.seed(random_seed)
 
     temp_list = list(zip(data_items, data_class, data_files))
+    # print(temp_list)
+    # exit()
     np.random.shuffle(temp_list)
     temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
 
-    data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
-    data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
+    temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
+    temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
+
+# print(f'Random seed: {random_seed}')
+data_files_train = temp_data_files_train
+data_class_train = temp_data_class_train
 
 
 
-    printProgressBar(0, len(data_items), prefix = 'Dataset building:', suffix = '', length = 20)
-    for i, (item, file) in enumerate(zip(data_items, data_files)):
-        with open(item, 'r') as json_file:
-            history = json.load(json_file)
+printProgressBar(0, len(data_items), prefix = 'Dataset building:', suffix = '', length = 50)
+for i, (item, file) in enumerate(zip(data_items, data_files)):
+    with open(item, 'r') as json_file:
+        history = json.load(json_file)
 
-        for aug_rsize in augmentation_rsize:
-            frame_len = int(frame_len_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
-            frame_shift = int(frame_shift_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
-            for aug_shift in augmentation_shift:
-                for aug_rotat in augmentation_rotat:
-                    for frame in range(0, history['samples'] - frame_len + 1, frame_shift):
-                        if frame + aug_shift >= 0 and frame + frame_shift + aug_shift <= history['samples']: # and sym[i] in sub_labels:
-                            if aug_rotat:
-                                temp_X = history['data']['x'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]
-                                temp_Y = history['data']['y'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]
-                                matrix_rotat = np.array([[math.cos(aug_rotat), math.sin(aug_rotat)], [-math.sin(aug_rotat), math.cos(aug_rotat)]])
+    for aug_rsize in augmentation_rsize:
+        frame_len = int(frame_len_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
+        frame_shift = int(frame_shift_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
+        for aug_shift in augmentation_shift:
+            if 'events' in history:
+                frames = [h - int(frame_len / 2) for h in history['events']]
+            else:
+                frames = list(range(0, history['samples'] - frame_len + 1, frame_shift))
+            for frame in frames:
+                if frame + aug_shift >= 0 and frame + frame_shift + aug_shift <= history['samples']: # and sym[i] in sub_labels:
+                    temp_X = [[history['data']['x'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]], [history['data']['y'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]], [history['data']['z'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]]]
+                    if median > 1:
+                        temp_X_median = []
+                        temp_Y_median = []
+                        temp_Z_median = []
+                        [
+                            (
+                                temp_X_median.append(statistics.median(temp_X[0][0][t : t + median])),
+                                temp_Y_median.append(statistics.median(temp_X[1][0][t : t + median])),
+                                temp_Z_median.append(statistics.median(temp_X[2][0][t : t + median]))
+                            )
+                            for t in range(len(temp_X[0][0]) - median + 1)
+                        ]
+                        temp_X = [[temp_X_median], [temp_Y_median], [temp_Z_median]]
+                    temp_Y = dataset_labels.index(history['class'])
+                    temp_C = True if aug_shift == 0 else False
+                    temp_R = data_files.index(file)
 
-                                temp_X_rotat = []
-                                temp_Y_rotat = []
-                                [
-                                    (
-                                        temp_X_rotat.append(round(np.dot(matrix_rotat, [x, y])[0])),
-                                        temp_Y_rotat.append(round(np.dot(matrix_rotat, [x, y])[1]))
-                                    )
-                                    for x, y in zip(temp_X, temp_Y)
-                                ]
-                                temp_X = [[temp_X_rotat], [temp_Y_rotat]]
-
+                    if calibrate:
+                        X = []
+                        Y = []
+                        Z = []
+                        # print(temp_X)
+                        for x_i, y_i, z_i in zip(temp_X[0][0], temp_X[1][0], temp_X[2][0]):
+                            # print(x_i, y_i, z_i)
+                            # exit()
+                            temp = np.matmul(np.array([x_i, y_i, z_i]), calibration_matrix)
+                            X.append(temp[0])
+                            Y.append(temp[1])
+                            if gforce:
+                                Z.append(temp[2] - 981)
                             else:
-                                temp_X = [[history['data']['x'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]], [history['data']['y'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]]]
-                            if median > 1:
-                                temp_X_median = []
-                                temp_Y_median = []
-                                [
-                                    (
-                                        temp_X_median.append(statistics.median(temp_X[0][0][t : t + median])),
-                                        temp_Y_median.append(statistics.median(temp_X[1][0][t : t + median]))
-                                    )
-                                    for t in range(len(temp_X[0][0]) - median + 1)
-                                ]
-                                temp_X = [[temp_X_median], [temp_Y_median]]
-                            temp_Y = dataset_labels.index(history['class'])
-                            temp_C = True if aug_shift == 0 else False
-                            temp_R = data_files.index(file)
+                                Z.append(temp[2])
+                            # if session_gforce:
+                            #     temp[2] -= - 981
+                            # X.append(temp)
+                        temp_X = [[X], [Y], [Z]]
 
-                            # if len(temp_X[0][0]) != temp_val:
-                            #     temp_val = len(temp_X[0][0])
-                            #     print(temp_val, 'MIAO')
-                            if file in data_files_train:
-                                X_train.append(temp_X)
-                                Y_train.append(temp_Y)
-                                C_train.append(temp_C)
-                                R_train.append(temp_R)
-                            else:
-                                if not aug_rsize and not aug_shift and not aug_rotat:
-                                    X_valid.append(temp_X)
-                                    Y_valid.append(temp_Y)
-                                    C_valid.append(temp_C)
-                                    R_valid.append(temp_R)
+                    if file in data_files_train:
+                        X_train.append(temp_X)
+                        Y_train.append(temp_Y)
+                        C_train.append(temp_C)
+                        R_train.append(temp_R)
+                    else:
+                        if not aug_rsize and not aug_shift: # and not aug_rotat:
+                            X_valid.append(temp_X)
+                            Y_valid.append(temp_Y)
+                            C_valid.append(temp_C)
+                            R_valid.append(temp_R)
 
-        printProgressBar(i + 1, len(data_items), prefix = 'Dataset building:', suffix = '', length = 20)
+    printProgressBar(i + 1, len(data_items), prefix = 'Dataset building:', suffix = '', length = 50)
 
 
 
-    t_done = False
-    t_dict = {'prefix' : f'{color.NONE}Data loader{color.END}: '}
-    t = threading.Thread(target=animate, kwargs=t_dict)
-    t.start()
+t_done = False
+t_dict = {'prefix' : f'{color.NONE}Data loader{color.END}: '}
+t = threading.Thread(target=animate, kwargs=t_dict)
+t.start()
 
-    item_perm_train = np.arange(np.size(X_train,0))
-    # item_perm_valid = np.arange(np.size(X_valid,0))
+item_perm_train = np.arange(np.size(X_train,0))
+# item_perm_valid = np.arange(np.size(X_valid,0))
 
-    np.random.shuffle(item_perm_train)
-    # np.random.shuffle(item_perm_valid)
+np.random.shuffle(item_perm_train)
+# np.random.shuffle(item_perm_valid)
 
-    X_train = np.array(X_train)[item_perm_train]
-    Y_train = np.array(Y_train)[item_perm_train]
-    C_train = np.array(C_train)[item_perm_train]
-    R_train = np.array(R_train)[item_perm_train]
+X_train = np.array(X_train)[item_perm_train]
+Y_train = np.array(Y_train)[item_perm_train]
+C_train = np.array(C_train)[item_perm_train]
+R_train = np.array(R_train)[item_perm_train]
 
-    X_valid = np.array(X_valid)
-    Y_valid = np.array(Y_valid)
-    R_valid = np.array(R_valid)
-
-    # print(Y_valid)
-    # exit()
+X_valid = np.array(X_valid)
+Y_valid = np.array(Y_valid)
+R_valid = np.array(R_valid)
 
 
 
@@ -379,6 +448,10 @@ loader_valid = torch.utils.data.DataLoader(t_dataset_valid, batch_size=value_bat
 
 t_done = True
 time.sleep(0.2)
+print('\n\n')
+
+# exit()
+
 
 
 
@@ -444,8 +517,8 @@ class Net(nn.Module):
     def forward(self, x):
 
         if(self.debug):
-            torch.set_printoptions(threshold=500000, precision=10) #, linewidth=20
-            f = open(session_train+"/inference_data_example/input_"+str(self.temp)+".txt", "w")
+            torch.set_printoptions(threshold=500000, precision=10) #, linehalf_windowth=20
+            f = open(session_path+"inference_data_example/input_"+str(self.temp)+".txt", "w")
 
             f.write("\n\ndequant\n")
             f.write(str(x))
@@ -615,21 +688,9 @@ print('\n\n')
 
 data_items = []
 class_dettail = {
-    'B' : {
-        'color' : color.PURPLE,
-        'description' : 'Basic stance balance'
-    },
-    'FB' : {
-        'color' : color.YELLOW,
-        'description' : 'Forward and backward tilt'
-    },
     'S' : {
         'color' : color.RED,
-        'description' : 'Side tilt'
-    },
-    'R' : {
-        'color' : color.CYAN,
-        'description' : 'Two leg tilts – Round the clock'
+        'description' : 'Squat'
     },
     'G' : {
         'color' : color.BLUE,
