@@ -129,7 +129,7 @@ for i in data_items:
         y = y_temp
         z = z_temp
 
-    module = [int(math.sqrt(x_i*x_i + y_i*y_i + z_i*z_i)) for x_i, y_i, z_i in zip(x, y, z)]
+    module = [math.sqrt(x_i*x_i + y_i*y_i + z_i*z_i) for x_i, y_i, z_i in zip(x, y, z)]
 
     if 'events' not in history and (session_labeling or session_Labeling):
         # if not os.path.isfile(i.replace('.json', '_labeled.json')):
@@ -152,8 +152,14 @@ for i in data_items:
 
     fig = plt.figure()
 
+    temp = f"{i}"
+    try:
+        temp += f"\nRipetitions: {history['ripetitions']}"
+    except:
+        pass
+
     ax1 = fig.add_subplot(1,1,1)
-    ax1.set_title(f"{i}")
+    ax1.set_title(temp)
     ax1.plot(range(history['samples'] - session_median + 1), x)
     ax1.plot(range(history['samples'] - session_median + 1), y)
     ax1.plot(range(history['samples'] - session_median + 1), z)
