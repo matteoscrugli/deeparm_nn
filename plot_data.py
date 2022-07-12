@@ -12,11 +12,6 @@ import matplotlib.pyplot as plt
 
 
 
-labeling_th = 1000
-labeling_ignore = 150
-
-
-
 def rotation_matrix_from_vectors(vec1, vec2):
     """ Find the rotation matrix that aligns vec1 to vec2
     :param vec1: A 3d "source" vector
@@ -37,6 +32,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-i','--input', dest='input', required=True, nargs='*', help="input (folders or files)")
 parser.add_argument('-m','--median', dest='median', default=1, type=int, help='plot median data')
 parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calibration file')
+parser.add_argument('-g','--zgforce', dest='zgforce', default='', action='store_true', help='zgforce remover')
 parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
 parser.add_argument('-l','--labeling', dest='labeling', default='', action='store_true', help='enable labeling')
 parser.add_argument('-L','--Labeling', dest='Labeling', default='', action='store_true', help='enable labeling and save results')
@@ -45,9 +41,24 @@ args = parser.parse_args()
 session_input = args.input
 session_median = args.median
 session_calibrate = args.calibrate
+session_zgforce = args.zgforce
 session_gforce = args.gforce
 session_labeling = args.labeling
 session_Labeling = args.Labeling
+
+if session_zgforce and session_gforce:
+    print('\nChoose only one argument between -g and -G')
+    exit()
+
+
+
+labeling_ignore = 150
+labeling_th = 981 + 350
+
+if session_zgforce:
+    labeling_th = 700
+elif session_gforce:
+    labeling_th = 350
 
 
 
@@ -120,7 +131,8 @@ for i in data_items:
             temp = np.matmul(np.array([x_i, y_i, z_i]), calibration_matrix)
             x.append(temp[0])
             y.append(temp[1])
-            if session_gforce:
+
+            if session_zgforce:
                 z.append(temp[2] - 981)
             else:
                 z.append(temp[2])
@@ -129,7 +141,10 @@ for i in data_items:
         y = y_temp
         z = z_temp
 
-    module = [math.sqrt(x_i*x_i + y_i*y_i + z_i*z_i) for x_i, y_i, z_i in zip(x, y, z)]
+    if session_gforce:
+        module = [math.sqrt(x_i*x_i + y_i*y_i + z_i*z_i) - 981 for x_i, y_i, z_i in zip(x, y, z)]
+    else:
+        module = [math.sqrt(x_i*x_i + y_i*y_i + z_i*z_i) for x_i, y_i, z_i in zip(x, y, z)]
 
     if 'events' not in history and (session_labeling or session_Labeling):
         # if not os.path.isfile(i.replace('.json', '_labeled.json')):

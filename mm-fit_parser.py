@@ -20,6 +20,7 @@ parser.add_argument('--ft', dest='f_type', nargs='*', default=[], help='type fil
 args = parser.parse_args()
 
 
+
 def create_folder(input_path, ignore = False):
     if os.path.isdir(input_path):
         if not ignore:
