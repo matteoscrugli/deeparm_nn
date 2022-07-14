@@ -361,6 +361,15 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                     temp_C = True if aug_shift == 0 else False
                     temp_R = data_files.index(file)
 
+                    if len(temp_X[0][0]) != 47:
+                        print('')
+                        print(len(temp_X[0][0]))
+                        print(temp_X)
+                        print(temp_Y)
+                        print(temp_C)
+                        print(temp_R)
+                        continue
+
                     if calibrate:
                         X = []
                         Y = []
@@ -688,13 +697,25 @@ print('\n\n')
 
 data_items = []
 class_dettail = {
-    'S' : {
-        'color' : color.RED,
-        'description' : 'Squat'
-    },
     'G' : {
         'color' : color.BLUE,
         'description' : 'Garbage'
+    },
+    'SQ' : {
+        'color' : color.RED,
+        'description' : 'Squat'
+    },
+    'SQ_R' : {
+        'color' : color.END,
+        'description' : 'Squat'
+    },
+    'P' : {
+        'color' : color.GREEN,
+        'description' : 'Pushup'
+    },
+    'P_R' : {
+        'color' : color.END,
+        'description' : 'Pushup'
     },
     'T' : {
         'color' : color.END,
@@ -732,24 +753,25 @@ for i, item in enumerate(data_items):
         history = json.load(json_file)
 
     frame_len = int(frame_len_sec * history['frequency'])
-    frame_shift_sec = 1
+    frame_shift_sec = 1/4
     frame_shift = int(frame_shift_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
 
     X = []
     Y = []
     for frame in range(0, history['samples'] - frame_len + 1, frame_shift):
-        X_temp = [[history['data']['x'][frame : frame + frame_len : downscaling]], [history['data']['y'][frame : frame + frame_len : downscaling]]]
+        X_temp = [[history['data']['x'][frame : frame + frame_len : downscaling]], [history['data']['y'][frame : frame + frame_len : downscaling]], [history['data']['z'][frame : frame + frame_len : downscaling]]]
         if median > 1:
             temp_X_median = []
             temp_Y_median = []
             [
                 (
                     temp_X_median.append(statistics.median(temp_X[0][0][t : t + median])),
-                    temp_Y_median.append(statistics.median(temp_X[1][0][t : t + median]))
+                    temp_Y_median.append(statistics.median(temp_X[1][0][t : t + median])),
+                    temp_Z_median.append(statistics.median(temp_X[2][0][t : t + median]))
                 )
                 for t in range(len(temp_X[0][0]) - median + 1)
             ]
-            temp_X = [[temp_X_median], [temp_Y_median]]
+            temp_X = [[temp_X_median], [temp_Y_median], [temp_Z_median]]
         # if frame + aug_shift >= 0 and frame + frame_shift + aug_shift <= history['samples']: # and sym[i] in sub_labels:
         X.append(X_temp)
         # Y.append(dataset_labels.index(history['class']))
@@ -766,7 +788,7 @@ for i, item in enumerate(data_items):
 
     for data in loader:
         inputs, labels = data
-        outputs = model_quantized(inputs.float())
+        outputs = model(inputs.float()) # _quantized FIXME!
         outputs = [list(o).index(max(o)) for o in outputs]
 
         if history['class'] in dataset_labels:

@@ -52,7 +52,7 @@ if session_zgforce and session_gforce:
 
 
 
-labeling_ignore = 150
+labeling_ignore = 125
 labeling_th = 981 + 350
 
 if session_zgforce:

@@ -48,7 +48,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-n','--name', dest='name', required=True, help="session name")
 parser.add_argument('-e','--epoch', dest='epoch', required=True, type=int, help="number of epochs")
 parser.add_argument('-d','--dataset', dest='dataset', required=True, nargs='*', help="dataset path")
-parser.add_argument('-c','--classes', dest='classes', nargs='*', default=['G', 'S'], help="classes to train")
+parser.add_argument('-c','--classes', dest='classes', nargs='*', default=['G', 'SQ', 'P'], help="classes to train")
 parser.add_argument('-s','--split', dest='split', default='0.7', help="choice of dataset splitting")
 parser.add_argument('-o','--overwrite', dest='overwrite', action='store_true', help="overwrite the session if it already exists")
 parser.add_argument('-b','--batchsize', dest='batchsize', default=32, type=int, help="batchsize value")
@@ -269,6 +269,10 @@ for dataset in dataset_path:
                 data_class.append(dirpath.split('/')[-1])
                 data_files.append(filename)
 
+# print(data_items)
+# print(data_class)
+# print(data_files)
+# # exit()
 
 
 X_train = []
@@ -293,16 +297,29 @@ if random_seed == None:
         np.random.shuffle(temp_list)
         temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
 
+        # print()
+        # print(temp_data_items)
+        # print(temp_data_class)
+        # print(temp_data_files)
+        # # exit()
+
         temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
         temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
+
+        # print()
+        # print(temp_data_files_train)
+        # print(temp_data_class_train)
+        # exit()
 
         temp_list = []
 
         for l in dataset_labels:
             temp_list.append(temp_data_class_train.count(l))
 
-        if (max(temp_list) - min(temp_list)) <= 1 and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
-            if 'B' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
+        # print(random_seed)
+
+        if (max(temp_list) - min(temp_list)) <= 1: # and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
+            if 'SQ' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
                 if temp_list[0] == max(temp_list) and temp_list[-1] == max(temp_list):
                     balanced = True
             else:
@@ -325,6 +342,11 @@ else:
 data_files_train = temp_data_files_train
 data_class_train = temp_data_class_train
 
+# print()
+# print(temp_data_files_train)
+# print(temp_data_class_train)
+# exit()
+
 
 
 printProgressBar(0, len(data_items), prefix = 'Dataset building:', suffix = '', length = 50)
@@ -338,9 +360,31 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
         for aug_shift in augmentation_shift:
             if 'events' in history:
                 frames = [h - int(frame_len / 2) for h in history['events']]
+                temp_class = [f"{history['class']}"] * len(frames)
+
+                # print(file)
+                # print()
+                # print(frames)
+                # print(temp_class)
+
+                temp_events = [int((a + b) / 2) for a, b in zip(history['events'], history['events'][1:])]
+                # print()
+                # print(temp_events)
+
+                temp_newclass = 'G' # f"{history['class']}_R"
+
+                if temp_newclass not in dataset_labels:
+                    dataset_labels.append(temp_newclass)
+                frames += [h - int(frame_len / 2) for h in temp_events]
+                temp_class += [temp_newclass] * len(temp_events)
+
+                # print()
+                # print(frames)
+                # print(temp_class)
+                # exit()
             else:
                 frames = list(range(0, history['samples'] - frame_len + 1, frame_shift))
-            for frame in frames:
+            for j, frame in enumerate(frames):
                 if frame + aug_shift >= 0 and frame + frame_shift + aug_shift <= history['samples']: # and sym[i] in sub_labels:
                     temp_X = [[history['data']['x'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]], [history['data']['y'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]], [history['data']['z'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]]]
                     if median > 1:
@@ -356,9 +400,21 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                             for t in range(len(temp_X[0][0]) - median + 1)
                         ]
                         temp_X = [[temp_X_median], [temp_Y_median], [temp_Z_median]]
-                    temp_Y = dataset_labels.index(history['class'])
+                    if 'events' in history:
+                        temp_Y = dataset_labels.index(temp_class[j])
+                    else:
+                        temp_Y = dataset_labels.index(history['class'])
                     temp_C = True if aug_shift == 0 else False
                     temp_R = data_files.index(file)
+
+                    if len(temp_X[0][0]) != 47:
+                        print('')
+                        print(len(temp_X[0][0]))
+                        print(temp_X)
+                        print(temp_Y)
+                        print(temp_C)
+                        print(temp_R)
+                        continue
 
                     if calibrate:
                         X = []
