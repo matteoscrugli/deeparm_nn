@@ -34,6 +34,7 @@ parser.add_argument('-m','--median', dest='median', default=1, type=int, help='p
 parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calibration file')
 parser.add_argument('-g','--zgforce', dest='zgforce', default='', action='store_true', help='zgforce remover')
 parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
+parser.add_argument('-n','--normalize', dest='normalize', action='store_true', help='gforce normalizer')
 parser.add_argument('-l','--labeling', dest='labeling', default='', action='store_true', help='enable labeling')
 parser.add_argument('-L','--Labeling', dest='Labeling', default='', action='store_true', help='enable labeling and save results')
 args = parser.parse_args()
@@ -43,6 +44,7 @@ session_median = args.median
 session_calibrate = args.calibrate
 session_zgforce = args.zgforce
 session_gforce = args.gforce
+session_normalize = args.normalize
 session_labeling = args.labeling
 session_Labeling = args.Labeling
 
@@ -145,6 +147,13 @@ for i in data_items:
         module = [math.sqrt(x_i*x_i + y_i*y_i + z_i*z_i) - 981 for x_i, y_i, z_i in zip(x, y, z)]
     else:
         module = [math.sqrt(x_i*x_i + y_i*y_i + z_i*z_i) for x_i, y_i, z_i in zip(x, y, z)]
+
+    if session_normalize:
+        x = [j / 981 for j in x]
+        y = [j / 981 for j in y]
+        z = [j / 981 for j in z]
+
+        module = [j / 981 for j in module]
 
     if 'events' not in history and (session_labeling or session_Labeling):
         # if not os.path.isfile(i.replace('.json', '_labeled.json')):

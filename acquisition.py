@@ -31,8 +31,13 @@ import matplotlib.animation as animation
 from bleak import BleakClient
 from bleak import _logger as logger
 
+# address = "C0:6E:33:30:41:4D" # DEV MATTEO
 # address = "C0:6E:38:30:41:4D" # CRADLE MATTEO
+
 # address = "C0:6E:28:30:3A:4D" # CRADLE BOJAN
+
+# address = "C0:6E:38:30:41:4D" # CRADLE 1
+address = "C0:6E:29:31:3B:48" # CRADLE 2
 
 
 
@@ -40,17 +45,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-n','--name', dest='name', required=True, help="session name")
 parser.add_argument('-c','--class', dest='classes', required=True, help="class type")
 parser.add_argument('-t','--test', dest='test', action='store_true', help='test mode')
-parser.add_argument('-a','--address', dest='address', default='C0:6E:38:30:41:4D', help="SensorTile MAC address")
+parser.add_argument('-a','--address', dest='address', default=address, help="SensorTile MAC address")
 # parser.add_argument('--calibration', dest='calibration', action='store_true', help="caloibration samples")
 parser.add_argument('-s','--samples', dest='samples', default=6000, type=int, help="samples limit")
 parser.add_argument('-f','--frequency', dest='frequency', default=100, type=int, help="samples frequency (Hz)")
-parser.add_argument('-ox','--offsetx', dest='offsetx', default=-8, type=int, help='X offset') # 20
-parser.add_argument('-oy','--offsety', dest='offsety', default=22, type=int, help='Y offset') # 10
+parser.add_argument('-ox','--offsetx', dest='offsetx', default=0, type=int, help='X offset')
+parser.add_argument('-oy','--offsety', dest='offsety', default=0, type=int, help='Y offset')
 parser.add_argument('--note', dest='note', help="note")
-parser.add_argument('-d','--delay', dest='delay', default=5, type=int, help="countdown")
+parser.add_argument('-d','--delay', dest='delay', default=3, type=int, help="countdown")
 # parser.add_argument('-p','--plot', dest='plot', action='store_true', help='plot data')
-parser.add_argument('-m','--median', dest='median', default=15, type=int, help='plot n median values')
-parser.add_argument('-g','--gain', dest='gain', default=0.5, type=float, help='plot gain')
+parser.add_argument('-m','--median', dest='median', default=0, type=int, help='plot n median values')
+parser.add_argument('-g','--gain', dest='gain', default=1/16, type=float, help='plot gain')
 parser.add_argument('-l','--live', dest='live', action='store_true', help='only plot data')
 parser.add_argument('-i','--inference', dest='inference', help="applies inference to results")
 args = parser.parse_args()
@@ -171,6 +176,25 @@ def notification_handler(sender, data):
         global gain
         global z_ignore
 
+        # if False: # DEBUG
+        #     byte_len = 2
+        #     offset = 4
+        #     X_t = 0
+        #     X_t = offset + X_t*byte_len
+        #     Y_t = 1
+        #     Y_t = offset + Y_t*byte_len
+        #     Z_t = 2
+        #     Z_t = offset + Z_t*byte_len
+        #
+        #     print()
+        #     print()
+        #     print()
+        #     print(data)
+        #     print()
+        #     print(int.from_bytes(data[X_t:X_t+byte_len], byteorder='little', signed=True))
+        #     print(int.from_bytes(data[Y_t:Y_t+byte_len], byteorder='little', signed=True))
+        #     print(int.from_bytes(data[Z_t:Z_t+byte_len], byteorder='little', signed=True))
+
         if session_countdown:
             pass
 
@@ -213,52 +237,53 @@ def notification_handler(sender, data):
 
             # print(f"X: |}", end = '\r') # ({data[X]}, {data[X+len-1]}, {data[X:X+len]})")
 
-            while newline:
-                print('', end = '\033[F')
-                newline -= 1
+            if True:
+                while newline:
+                    print('', end = '\033[F')
+                    newline -= 1
 
-            if not session_live:
-                temp_val = round((list_cnt / session_samples) * progress_len)
-                temp_string =  color.BLUE + '⧖ ' + '▮' * temp_val + ' ' * (progress_len - temp_val) + ' ⧖' + color.END
-                print(f'{temp_string}\n')
-                newline += 2
+                if not session_live:
+                    temp_val = round((list_cnt / session_samples) * progress_len)
+                    temp_string =  color.BLUE + '⧖ ' + '▮' * temp_val + ' ' * (progress_len - temp_val) + ' ⧖' + color.END
+                    print(f'{temp_string}\n')
+                    newline += 2
 
-            if session_median > 0:
-                temp_val = min(string_len, max(-string_len, round((statistics.median(x) + session_offsetx) / scale)))
-            else:
-                temp_val = min(string_len, max(-string_len, round((history['data']['x'][-1] + session_offsetx) / scale)))
-            if temp_val > 0:
-                temp_string = color.GREEN + '|' + ' ' * string_len + 'X' + '▮' * temp_val + ' ' * (string_len - temp_val) + '|' + color.END
-            else:
-                temp_string = color.GREEN + '|' + ' ' * (string_len + temp_val) + '▮' * -temp_val + 'X' + ' ' * string_len + '|' + color.END
-            print(f'{temp_string}')
-            newline += 1
-
-            if session_median > 0:
-                temp_val = -min(string_len, max(-string_len, round((statistics.median(y) + session_offsety) / scale)))
-            else:
-                temp_val = -min(string_len, max(-string_len, round((history['data']['y'][-1] + session_offsety) / scale)))
-            if temp_val > 0:
-                temp_string = color.YELLOW + '|' + ' ' * string_len + 'Y' + '▮' * temp_val + ' ' * (string_len - temp_val) + '|' + color.END
-            else:
-                temp_string = color.YELLOW + '|' + ' ' * (string_len + temp_val) + '▮' * -temp_val + 'Y' + ' ' * string_len + '|' + color.END
-            print(f'{temp_string}')
-            newline += 1
-
-            if not z_ignore:
                 if session_median > 0:
-                    temp_val = min(string_len, max(-string_len, round(statistics.median(z) / scale)))
+                    temp_val = min(string_len, max(-string_len, round((statistics.median(x) + session_offsetx) / scale)))
                 else:
-                    temp_val = min(string_len, max(-string_len, round(history['data']['z'][-1] / scale)))
+                    temp_val = min(string_len, max(-string_len, round((history['data']['x'][-1] + session_offsetx) / scale)))
                 if temp_val > 0:
-                    temp_string = color.RED + '|' + ' ' * string_len + 'Z' + '▮' * temp_val + ' ' * (string_len - temp_val) + '|' + color.END
+                    temp_string = color.GREEN + '|' + ' ' * string_len + 'X' + '▮' * temp_val + ' ' * (string_len - temp_val) + '|' + color.END
                 else:
-                    temp_string = color.RED + '|' + ' ' * (string_len + temp_val) + '▮' * -temp_val + 'Z' + ' ' * string_len + '|' + color.END
+                    temp_string = color.GREEN + '|' + ' ' * (string_len + temp_val) + '▮' * -temp_val + 'X' + ' ' * string_len + '|' + color.END
                 print(f'{temp_string}')
                 newline += 1
 
-            print(f'')
-            newline += 1
+                if session_median > 0:
+                    temp_val = -min(string_len, max(-string_len, round((statistics.median(y) + session_offsety) / scale)))
+                else:
+                    temp_val = -min(string_len, max(-string_len, round((history['data']['y'][-1] + session_offsety) / scale)))
+                if temp_val > 0:
+                    temp_string = color.YELLOW + '|' + ' ' * string_len + 'Y' + '▮' * temp_val + ' ' * (string_len - temp_val) + '|' + color.END
+                else:
+                    temp_string = color.YELLOW + '|' + ' ' * (string_len + temp_val) + '▮' * -temp_val + 'Y' + ' ' * string_len + '|' + color.END
+                print(f'{temp_string}')
+                newline += 1
+
+                if not z_ignore:
+                    if session_median > 0:
+                        temp_val = min(string_len, max(-string_len, round(statistics.median(z) / scale)))
+                    else:
+                        temp_val = min(string_len, max(-string_len, round(history['data']['z'][-1] / scale)))
+                    if temp_val > 0:
+                        temp_string = color.RED + '|' + ' ' * string_len + 'Z' + '▮' * temp_val + ' ' * (string_len - temp_val) + '|' + color.END
+                    else:
+                        temp_string = color.RED + '|' + ' ' * (string_len + temp_val) + '▮' * -temp_val + 'Z' + ' ' * string_len + '|' + color.END
+                    print(f'{temp_string}')
+                    newline += 1
+
+                print(f'')
+                newline += 1
 
             list_cnt += 1
 
