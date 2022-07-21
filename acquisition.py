@@ -33,11 +33,17 @@ from bleak import _logger as logger
 
 # address = "C0:6E:33:30:41:4D" # DEV MATTEO
 # address = "C0:6E:38:30:41:4D" # CRADLE MATTEO
-
 # address = "C0:6E:28:30:3A:4D" # CRADLE BOJAN
-
 # address = "C0:6E:38:30:41:4D" # CRADLE 1
-address = "C0:6E:29:31:3B:48" # CRADLE 2
+# address = "C0:6E:29:31:3B:48" # CRADLE 2
+
+addresses = {
+    'M0DEV' : 'C0:6E:33:30:41:4D',
+    'M0' : 'C0:6E:38:30:41:4D',
+    'M1' : 'C0:6E:38:30:41:4D', # NOT WORKING
+    'M2' : 'C0:6E:29:31:3B:48',
+    'B0' : 'C0:6E:29:31:3B:48'
+}
 
 
 
@@ -45,7 +51,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-n','--name', dest='name', required=True, help="session name")
 parser.add_argument('-c','--class', dest='classes', required=True, help="class type")
 parser.add_argument('-t','--test', dest='test', action='store_true', help='test mode')
-parser.add_argument('-a','--address', dest='address', default=address, help="SensorTile MAC address")
+parser.add_argument('-a','--address', dest='address', default=addresses['M0'], help="SensorTile MAC address")
 # parser.add_argument('--calibration', dest='calibration', action='store_true', help="caloibration samples")
 parser.add_argument('-s','--samples', dest='samples', default=6000, type=int, help="samples limit")
 parser.add_argument('-f','--frequency', dest='frequency', default=100, type=int, help="samples frequency (Hz)")
@@ -74,8 +80,10 @@ session_plot = False
 session_median = args.median
 session_gain = args.gain
 session_live = args.live
-address = args.address
-
+try:
+    address = addresses[args.address]
+except:
+    address = args.address
 # json_file = open(session_inference + '/training_summary.json', 'r')
 # json_data = json.load(json_file)
 
