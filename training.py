@@ -1,3 +1,4 @@
+from turtle import down
 import torch
 import torchvision
 import torch.quantization
@@ -48,7 +49,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-n','--name', dest='name', required=True, help="session name")
 parser.add_argument('-e','--epoch', dest='epoch', required=True, type=int, help="number of epochs")
 parser.add_argument('-d','--dataset', dest='dataset', required=True, nargs='*', help="dataset path")
-parser.add_argument('-c','--classes', dest='classes', nargs='*', default=['G', 'SQ', 'P'], help="classes to train")
+parser.add_argument('-c','--classes', dest='classes', nargs='*', default=['G', 'GD', 'GR'], help="classes to train")
 parser.add_argument('-s','--split', dest='split', default='0.7', help="choice of dataset splitting")
 parser.add_argument('-o','--overwrite', dest='overwrite', action='store_true', help="overwrite the session if it already exists")
 parser.add_argument('-b','--batchsize', dest='batchsize', default=32, type=int, help="batchsize value")
@@ -56,11 +57,13 @@ parser.add_argument('-b','--batchsize', dest='batchsize', default=32, type=int, 
 parser.add_argument('-r','--randomseed', dest='randomseed', type=int, default=None, help='random seed for dataset randomization')
 # parser.add_argument('-p','-.peak', dest='peak', help='peak detector path')
 
+parser.add_argument('-v','--separate_validation', dest='separate_validation', action='store_true', help="separate files for validation")
+
 parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calibration file')
 parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
 
-parser.add_argument('--flen', dest='flen', default=3.250, type=float, help="frame lenght in seconds")
-parser.add_argument('--fshift', dest='fshift', default=2.25, type=float, help="frame shift in seconds")
+parser.add_argument('--flen', dest='flen', default=2.50, type=float, help="frame lenght in seconds")
+parser.add_argument('--fshift', dest='fshift', default=1.25, type=float, help="frame shift in seconds")
 parser.add_argument('--dscaling', dest='dscaling', type=int, default=7, help='random seed for dataset randomization')
 parser.add_argument('--median', dest='median', type=int, default=1, help='median value')
 
@@ -69,8 +72,8 @@ parser.add_argument('--augshift', dest='augshift', type=int, nargs=3, default=[0
 parser.add_argument('--augrotat', dest='augrotat', type=int, nargs=3, default=[0, 0, 1], help='rotation augmentation')
 
 parser.add_argument('--norm', dest='normalization', action='store_true', help="during training, scales all inputs so that its absolute value is equal to 1")
-parser.add_argument('--indim', dest='indimension', default=2000, type=int, help="input dimension")
-parser.add_argument('--ksize', dest='ksize', default=7, type=int, help="kernel size")
+# parser.add_argument('--indim', dest='indimension', default=2000, type=int, help="input dimension")
+parser.add_argument('--ksize', dest='ksize', default=5, type=int, help="kernel size")
 parser.add_argument('--conv1of', dest='conv1of', default=20, type=int, help="conv 1 output features value")
 parser.add_argument('--conv2of', dest='conv2of', default=20, type=int, help="conv 2 output features value")
 parser.add_argument('--foutdim', dest='foutdim', default=100, type=int, help="fully connected 1 output dimension")
@@ -92,20 +95,6 @@ if os.path.isdir(session_path):
             print("Error in session creation ("+session_path+").")
             exit()
     else:
-        # print("Session already exists ("+session_path+"), overwrite the session? (y/n): ", end='')
-        # force_write = input()
-        # if force_write == "y":
-        #     print('')
-        #     try:
-        #         shutil.rmtree(session_path)
-        #         Path(session_path).mkdir(parents=True, exist_ok=True)
-        #         Path(session_path+'inference_data_example').mkdir(parents=True, exist_ok=True)
-        #         Path(session_path+'parameters').mkdir(parents=True, exist_ok=True)
-        #     except OSError:
-        #         print("Error in session creation ("+session_path+").")
-        #         exit()
-        # else:
-        #     exit()
         print(f'Session path ({session_path}) already exists')
         exit()
 else:
@@ -274,6 +263,10 @@ for dataset in dataset_path:
 # print(data_files)
 # # exit()
 
+X = []
+Y = []
+C = []
+R = []
 
 X_train = []
 M_train = []
@@ -287,65 +280,56 @@ Y_valid = []
 C_valid = []
 R_valid = []
 
-if random_seed == None:
-    random_seed = 0
-    balanced = False
-    while not balanced:
+
+
+if args.separate_validation:
+    if random_seed == None:
+        random_seed = 0
+        balanced = False
+        while not balanced:
+            np.random.seed(random_seed)
+
+            temp_list = list(zip(data_items, data_class, data_files))
+            np.random.shuffle(temp_list)
+            temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
+
+            temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
+            temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
+
+            temp_list = []
+
+            for l in dataset_labels:
+                temp_list.append(temp_data_class_train.count(l))
+
+            if (max(temp_list) - min(temp_list)) <= 1: # and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
+                if 'SQ' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
+                    if temp_list[0] == max(temp_list) and temp_list[-1] == max(temp_list):
+                        balanced = True
+                else:
+                    balanced = True
+            else:
+                random_seed += 1
+    else:
         np.random.seed(random_seed)
 
         temp_list = list(zip(data_items, data_class, data_files))
         np.random.shuffle(temp_list)
         temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
 
-        # print()
-        # print(temp_data_items)
-        # print(temp_data_class)
-        # print(temp_data_files)
-        # # exit()
-
         temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
         temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
 
-        # print()
-        # print(temp_data_files_train)
-        # print(temp_data_class_train)
-        # exit()
+    data_files_train = temp_data_files_train
+    data_class_train = temp_data_class_train
 
-        temp_list = []
-
-        for l in dataset_labels:
-            temp_list.append(temp_data_class_train.count(l))
-
-        # print(random_seed)
-
-        if (max(temp_list) - min(temp_list)) <= 1: # and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
-            if 'SQ' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
-                if temp_list[0] == max(temp_list) and temp_list[-1] == max(temp_list):
-                    balanced = True
-            else:
-                balanced = True
-        else:
-            random_seed += 1
-else:
-    np.random.seed(random_seed)
-
-    temp_list = list(zip(data_items, data_class, data_files))
-    # print(temp_list)
-    # exit()
-    np.random.shuffle(temp_list)
-    temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
-
-    temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
-    temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
-
-# print(f'Random seed: {random_seed}')
-data_files_train = temp_data_files_train
-data_class_train = temp_data_class_train
-
-# print()
-# print(temp_data_files_train)
-# print(temp_data_class_train)
-# exit()
+else:      
+    if random_seed == None:
+        random_seed = 0
+        np.random.seed(random_seed)
+    X = []
+    Y = []
+    C = []
+    R = []
 
 
 
@@ -356,20 +340,20 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
 
     for aug_rsize in augmentation_rsize:
         frame_len = int(frame_len_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
+        # print('fram_len')
+        # print(frame_len_sec)
+        # print(history['frequency'])
+        # print(aug_rsize)
+        # print(downscaling)
+        # print((1 + (aug_rsize / downscaling)))
+        # exit()
         frame_shift = int(frame_shift_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
         for aug_shift in augmentation_shift:
             if 'events' in history:
                 frames = [h - int(frame_len / 2) for h in history['events']]
                 temp_class = [f"{history['class']}"] * len(frames)
 
-                # print(file)
-                # print()
-                # print(frames)
-                # print(temp_class)
-
                 temp_events = [int((a + b) / 2) for a, b in zip(history['events'], history['events'][1:])]
-                # print()
-                # print(temp_events)
 
                 temp_newclass = 'G' # f"{history['class']}_R"
 
@@ -377,11 +361,6 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                     dataset_labels.append(temp_newclass)
                 frames += [h - int(frame_len / 2) for h in temp_events]
                 temp_class += [temp_newclass] * len(temp_events)
-
-                # print()
-                # print(frames)
-                # print(temp_class)
-                # exit()
             else:
                 frames = list(range(0, history['samples'] - frame_len + 1, frame_shift))
             for j, frame in enumerate(frames):
@@ -407,23 +386,21 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                     temp_C = True if aug_shift == 0 else False
                     temp_R = data_files.index(file)
 
-                    if len(temp_X[0][0]) != 47:
-                        print('')
-                        print(len(temp_X[0][0]))
-                        print(temp_X)
-                        print(temp_Y)
-                        print(temp_C)
-                        print(temp_R)
+                    if len(temp_X[0][0]) != int((frame_len + downscaling - 1) / downscaling):
+                        # print('')
+                        # print(len(temp_X[0][0]))
+                        # print(temp_X)
+                        # print(temp_Y)
+                        # print(temp_C)
+                        # print(temp_R)
                         continue
 
                     if calibrate:
-                        X = []
-                        Y = []
-                        Z = []
-                        # print(temp_X)
+                        cal_X = []
+                        cal_Y = []
+                        cal_Z = []
+
                         for x_i, y_i, z_i in zip(temp_X[0][0], temp_X[1][0], temp_X[2][0]):
-                            # print(x_i, y_i, z_i)
-                            # exit()
                             temp = np.matmul(np.array([x_i, y_i, z_i]), calibration_matrix)
                             X.append(temp[0])
                             Y.append(temp[1])
@@ -431,24 +408,54 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                                 Z.append(temp[2] - 981)
                             else:
                                 Z.append(temp[2])
-                            # if session_gforce:
-                            #     temp[2] -= - 981
-                            # X.append(temp)
-                        temp_X = [[X], [Y], [Z]]
+                        temp_X = [[cal_X], [cal_Y], [cal_Z]]
 
-                    if file in data_files_train:
-                        X_train.append(temp_X)
-                        Y_train.append(temp_Y)
-                        C_train.append(temp_C)
-                        R_train.append(temp_R)
+                    if args.separate_validation:
+                        if file in data_files_train:
+                            X_train.append(temp_X)
+                            Y_train.append(temp_Y)
+                            C_train.append(temp_C)
+                            R_train.append(temp_R)
+                        else:
+                            if not aug_rsize and not aug_shift: # and not aug_rotat:
+                                X_valid.append(temp_X)
+                                Y_valid.append(temp_Y)
+                                C_valid.append(temp_C)
+                                R_valid.append(temp_R)
                     else:
-                        if not aug_rsize and not aug_shift: # and not aug_rotat:
-                            X_valid.append(temp_X)
-                            Y_valid.append(temp_Y)
-                            C_valid.append(temp_C)
-                            R_valid.append(temp_R)
+                        X.append(temp_X)
+                        Y.append(temp_Y)
+                        C.append(temp_C)
+                        R.append(temp_R)
+                    # else:
+                    #     if random.random() < dataset_split:
+                    #         X_train.append(temp_X)
+                    #         Y_train.append(temp_Y)
+                    #         C_train.append(temp_C)
+                    #         R_train.append(temp_R)
+                    #     else:
+                    #         if not aug_rsize and not aug_shift: # and not aug_rotat:
+                    #             X_valid.append(temp_X)
+                    #             Y_valid.append(temp_Y)
+                    #             C_valid.append(temp_C)
+                    #             R_valid.append(temp_R)
 
     printProgressBar(i + 1, len(data_items), prefix = 'Dataset building:', suffix = '', length = 50)
+
+if not args.separate_validation:
+    temp_list = list(zip(X, Y, C, R))
+    np.random.shuffle(temp_list)
+    X, Y, C, R = zip(*temp_list)
+
+    X_train = X[ : round(np.size(X, 0) * dataset_split)]
+    Y_train = Y[ : round(np.size(Y, 0) * dataset_split)]
+    C_train = C[ : round(np.size(C, 0) * dataset_split)]
+    R_train = R[ : round(np.size(R, 0) * dataset_split)]
+
+    X_valid = X[round(np.size(X, 0) * dataset_split) : ]
+    Y_valid = Y[round(np.size(Y, 0) * dataset_split) : ]
+    C_valid = C[round(np.size(C, 0) * dataset_split) : ]
+    R_valid = R[round(np.size(R, 0) * dataset_split) : ]
 
 
 
@@ -1348,6 +1355,7 @@ training_parameters = {
     'dataset_labels' : dataset_labels,
     'dataset_path' : dataset_path,
     'dataset_split' : dataset_split,
+    'separate_validation' : args.separate_validation,
     'frame_len_sec' : frame_len_sec,
     'frame_shift_sec' : frame_shift_sec,
     'downscaling' : downscaling,
