@@ -207,6 +207,7 @@ dataset_labels = json_train['dataset_labels']
 # dataset_labels = ['B', 'FB', 'S', 'R', 'G'] # fixme
 dataset_path = json_train['dataset_path']
 dataset_split = float(json_train['dataset_split'])
+separate_validation = json_train['separate_validation']
 value_batch_size = json_train['batch_size']
 normalization = json_train['normalization']
 random_seed = json_train['random_seed']
@@ -284,47 +285,57 @@ Y_valid = []
 C_valid = []
 R_valid = []
 
-if random_seed == None:
-    random_seed = 0
-    balanced = False
-    while not balanced:
+if separate_validation:
+    if random_seed == None:
+        random_seed = 0
+        balanced = False
+        while not balanced:
+            np.random.seed(random_seed)
+
+            temp_list = list(zip(data_items, data_class, data_files))
+            np.random.shuffle(temp_list)
+            temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
+
+            temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
+            temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
+
+            temp_list = []
+
+            for l in dataset_labels:
+                temp_list.append(temp_data_class_train.count(l))
+
+            if (max(temp_list) - min(temp_list)) <= 1 and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
+                if 'B' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
+                    if temp_list[0] == max(temp_list) and temp_list[-1] == max(temp_list):
+                        balanced = True
+                else:
+                    balanced = True
+            else:
+                random_seed += 1
+    else:
         np.random.seed(random_seed)
 
         temp_list = list(zip(data_items, data_class, data_files))
+        # print(temp_list)
+        # exit()
         np.random.shuffle(temp_list)
         temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
 
         temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
         temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
 
-        temp_list = []
+    # print(f'Random seed: {random_seed}')
+    data_files_train = temp_data_files_train
+    data_class_train = temp_data_class_train
 
-        for l in dataset_labels:
-            temp_list.append(temp_data_class_train.count(l))
-
-        if (max(temp_list) - min(temp_list)) <= 1 and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
-            if 'B' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
-                if temp_list[0] == max(temp_list) and temp_list[-1] == max(temp_list):
-                    balanced = True
-            else:
-                balanced = True
-        else:
-            random_seed += 1
-else:
-    np.random.seed(random_seed)
-
-    temp_list = list(zip(data_items, data_class, data_files))
-    # print(temp_list)
-    # exit()
-    np.random.shuffle(temp_list)
-    temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
-
-    temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
-    temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
-
-# print(f'Random seed: {random_seed}')
-data_files_train = temp_data_files_train
-data_class_train = temp_data_class_train
+else:      
+    if random_seed == None:
+        random_seed = 0
+        np.random.seed(random_seed)
+    X = []
+    Y = []
+    C = []
+    R = []
 
 
 
@@ -361,48 +372,69 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                     temp_C = True if aug_shift == 0 else False
                     temp_R = data_files.index(file)
 
-                    if len(temp_X[0][0]) != 47:
-                        print('')
-                        print(len(temp_X[0][0]))
-                        print(temp_X)
-                        print(temp_Y)
-                        print(temp_C)
-                        print(temp_R)
+                    if len(temp_X[0][0]) != int((frame_len + downscaling - 1) / downscaling):
+                        # print('')
+                        # print(len(temp_X[0][0]))
+                        # print(temp_X)
+                        # print(temp_Y)
+                        # print(temp_C)
+                        # print(temp_R)
                         continue
 
                     if calibrate:
-                        X = []
-                        Y = []
-                        Z = []
+                        cal_X = []
+                        cal_Y = []
+                        cal_Z = []
                         # print(temp_X)
                         for x_i, y_i, z_i in zip(temp_X[0][0], temp_X[1][0], temp_X[2][0]):
                             # print(x_i, y_i, z_i)
                             # exit()
                             temp = np.matmul(np.array([x_i, y_i, z_i]), calibration_matrix)
-                            X.append(temp[0])
-                            Y.append(temp[1])
+                            cal_X.append(temp[0])
+                            cal_Y.append(temp[1])
                             if gforce:
-                                Z.append(temp[2] - 981)
+                                cal_Z.append(temp[2] - 981)
                             else:
-                                Z.append(temp[2])
+                                cal_Z.append(temp[2])
                             # if session_gforce:
                             #     temp[2] -= - 981
                             # X.append(temp)
-                        temp_X = [[X], [Y], [Z]]
+                        temp_X = [[cal_X], [cal_Y], [cal_Z]]
 
-                    if file in data_files_train:
-                        X_train.append(temp_X)
-                        Y_train.append(temp_Y)
-                        C_train.append(temp_C)
-                        R_train.append(temp_R)
+                    if separate_validation:
+                        if file in data_files_train:
+                            X_train.append(temp_X)
+                            Y_train.append(temp_Y)
+                            C_train.append(temp_C)
+                            R_train.append(temp_R)
+                        else:
+                            if not aug_rsize and not aug_shift: # and not aug_rotat:
+                                X_valid.append(temp_X)
+                                Y_valid.append(temp_Y)
+                                C_valid.append(temp_C)
+                                R_valid.append(temp_R)
                     else:
-                        if not aug_rsize and not aug_shift: # and not aug_rotat:
-                            X_valid.append(temp_X)
-                            Y_valid.append(temp_Y)
-                            C_valid.append(temp_C)
-                            R_valid.append(temp_R)
+                        X.append(temp_X)
+                        Y.append(temp_Y)
+                        C.append(temp_C)
+                        R.append(temp_R)
 
     printProgressBar(i + 1, len(data_items), prefix = 'Dataset building:', suffix = '', length = 50)
+
+if not separate_validation:
+    temp_list = list(zip(X, Y, C, R))
+    np.random.shuffle(temp_list)
+    X, Y, C, R = zip(*temp_list)
+
+    X_train = X[ : round(np.size(X, 0) * dataset_split)]
+    Y_train = Y[ : round(np.size(Y, 0) * dataset_split)]
+    C_train = C[ : round(np.size(C, 0) * dataset_split)]
+    R_train = R[ : round(np.size(R, 0) * dataset_split)]
+
+    X_valid = X[round(np.size(X, 0) * dataset_split) : ]
+    Y_valid = Y[round(np.size(Y, 0) * dataset_split) : ]
+    C_valid = C[round(np.size(C, 0) * dataset_split) : ]
+    R_valid = R[round(np.size(R, 0) * dataset_split) : ]
 
 
 
@@ -696,31 +728,50 @@ print('\n\n')
 #╚══════╝  ╚═══╝  ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
 
 data_items = []
+# class_dettail = {
+#     'G' : {
+#         'color' : color.BLUE,
+#         'description' : 'Garbage'
+#     },
+#     'SQ' : {
+#         'color' : color.RED,
+#         'description' : 'Squat'
+#     },
+#     'SQ_R' : {
+#         'color' : color.END,
+#         'description' : 'Squat'
+#     },
+#     'P' : {
+#         'color' : color.GREEN,
+#         'description' : 'Pushup'
+#     },
+#     'P_R' : {
+#         'color' : color.END,
+#         'description' : 'Pushup'
+#     },
+#     'T' : {
+#         'color' : color.END,
+#         'description' : 'Test mode'
+#     },
+# }
+
 class_dettail = {
     'G' : {
         'color' : color.BLUE,
         'description' : 'Garbage'
     },
-    'SQ' : {
+    'GD' : {
         'color' : color.RED,
-        'description' : 'Squat'
+        'description' : 'Dritto'
     },
-    'SQ_R' : {
+    'GR' : {
         'color' : color.END,
-        'description' : 'Squat'
-    },
-    'P' : {
-        'color' : color.GREEN,
-        'description' : 'Pushup'
-    },
-    'P_R' : {
-        'color' : color.END,
-        'description' : 'Pushup'
+        'description' : 'Rovescio'
     },
     'T' : {
         'color' : color.END,
         'description' : 'Test mode'
-    },
+    }
 }
 
 for i in session_input:
