@@ -61,7 +61,7 @@ parser.add_argument('--note', dest='note', help="note")
 parser.add_argument('-d','--delay', dest='delay', default=3, type=int, help="countdown")
 # parser.add_argument('-p','--plot', dest='plot', action='store_true', help='plot data')
 parser.add_argument('-m','--median', dest='median', default=0, type=int, help='plot n median values')
-parser.add_argument('-g','--gain', dest='gain', default=1/16, type=float, help='plot gain')
+parser.add_argument('-g','--gain', dest='gain', default=1/2, type=float, help='plot gain')
 parser.add_argument('-l','--live', dest='live', action='store_true', help='only plot data')
 parser.add_argument('-i','--inference', dest='inference', help="applies inference to results")
 args = parser.parse_args()
@@ -259,6 +259,7 @@ def notification_handler(sender, data):
                 if session_median > 0:
                     temp_val = min(string_len, max(-string_len, round((statistics.median(x) + session_offsetx) / scale)))
                 else:
+
                     temp_val = min(string_len, max(-string_len, round((history['data']['x'][-1] + session_offsetx) / scale)))
                 if temp_val > 0:
                     temp_string = color.GREEN + '|' + ' ' * string_len + 'X' + '▮' * temp_val + ' ' * (string_len - temp_val) + '|' + color.END

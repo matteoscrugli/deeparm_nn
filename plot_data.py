@@ -55,14 +55,13 @@ if session_zgforce and session_gforce:
 
 
 labeling_ignore = 125
-labeling_th = 981 + 350
+labeling_gain = 1 # 24
 
+labeling_th = 981 + (350) * labeling_gain
 if session_zgforce:
-    labeling_th = 700
+    labeling_th = (700) * labeling_gain
 elif session_gforce:
-    labeling_th = 350
-
-
+    labeling_th = (350) * labeling_gain
 
 if session_calibrate:
     calibration_items = []
@@ -155,6 +154,8 @@ for i in data_items:
 
         module = [j / 981 for j in module]
 
+        labeling_th /= 981
+
     if 'events' not in history and (session_labeling or session_Labeling):
         # if not os.path.isfile(i.replace('.json', '_labeled.json')):
         index = []
@@ -191,7 +192,7 @@ for i in data_items:
 
     if 'events' in history:
         for e in history['events']:
-            plt.text(e,max(module[e-20 : e+20]) + 20,f"{history['class']}", va='bottom', ha='center', weight="bold")
+            plt.text(e,max(module[e-20 : e+20]),f"{history['class']}", va='bottom', ha='center', weight="bold")
 
     ax1.set_xlabel("Time")
     ax1.set_ylabel("Amplitude")
