@@ -37,6 +37,8 @@ parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_tr
 parser.add_argument('-n','--normalize', dest='normalize', action='store_true', help='gforce normalizer')
 parser.add_argument('-l','--labeling', dest='labeling', default='', action='store_true', help='enable labeling')
 parser.add_argument('-L','--Labeling', dest='Labeling', default='', action='store_true', help='enable labeling and save results')
+parser.add_argument('-T','--threshold', dest='threshold', default=1.0, help='choose threshold gain')
+parser.add_argument('-I','--ignore', dest='ignore', default=175, help='choose threshold samples ignore')
 args = parser.parse_args()
 
 session_input = args.input
@@ -47,6 +49,8 @@ session_gforce = args.gforce
 session_normalize = args.normalize
 session_labeling = args.labeling
 session_Labeling = args.Labeling
+session_ignore = int(args.ignore)
+session_threshold = float(args.threshold)
 
 if session_zgforce and session_gforce:
     print('\nChoose only one argument between -g and -G')
@@ -54,14 +58,14 @@ if session_zgforce and session_gforce:
 
 
 
-labeling_ignore = 125
-labeling_gain = 1 # 24
+labeling_ignore = session_ignore
+labeling_threshold = session_threshold
 
-labeling_th = 981 + (350) * labeling_gain
+labeling_th = 981 + (350) * labeling_threshold
 if session_zgforce:
-    labeling_th = (700) * labeling_gain
+    labeling_th = (700) * labeling_threshold
 elif session_gforce:
-    labeling_th = (350) * labeling_gain
+    labeling_th = (350) * labeling_threshold
 
 if session_calibrate:
     calibration_items = []
@@ -160,8 +164,11 @@ for i in data_items:
         # if not os.path.isfile(i.replace('.json', '_labeled.json')):
         index = []
         index_ignore = 0
+        # index_next_ignore = -10
         fall_ignore = True
         for j, m in enumerate(module):
+            # if index_next_ignore + 10 > j:
+            #     continue
             if j >= index_ignore:
                 if m > labeling_th:
                     if not fall_ignore:
@@ -170,6 +177,7 @@ for i in data_items:
                         index_ignore = j + labeling_ignore
                 else:
                     fall_ignore = False
+                    # index_next_ignore = j
         history['events'] = index
         if session_Labeling:
             with open(i, 'w') as json_file: # .replace('.json', '_labeled.json')

@@ -728,51 +728,51 @@ print('\n\n')
 #╚══════╝  ╚═══╝  ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
 
 data_items = []
-# class_dettail = {
-#     'G' : {
-#         'color' : color.BLUE,
-#         'description' : 'Garbage'
-#     },
-#     'SQ' : {
-#         'color' : color.RED,
-#         'description' : 'Squat'
-#     },
-#     'SQ_R' : {
-#         'color' : color.END,
-#         'description' : 'Squat'
-#     },
-#     'P' : {
-#         'color' : color.GREEN,
-#         'description' : 'Pushup'
-#     },
-#     'P_R' : {
-#         'color' : color.END,
-#         'description' : 'Pushup'
-#     },
-#     'T' : {
-#         'color' : color.END,
-#         'description' : 'Test mode'
-#     },
-# }
-
 class_dettail = {
     'G' : {
         'color' : color.BLUE,
         'description' : 'Garbage'
     },
-    'GD' : {
+    'SQ' : {
         'color' : color.RED,
-        'description' : 'Dritto'
+        'description' : 'Squat'
     },
-    'GR' : {
+    'SQ_R' : {
         'color' : color.END,
-        'description' : 'Rovescio'
+        'description' : 'Squat'
+    },
+    'P' : {
+        'color' : color.GREEN,
+        'description' : 'Pushup'
+    },
+    'P_R' : {
+        'color' : color.END,
+        'description' : 'Pushup'
     },
     'T' : {
         'color' : color.END,
         'description' : 'Test mode'
-    }
+    },
 }
+
+# class_dettail = {
+#     'G' : {
+#         'color' : color.BLUE,
+#         'description' : 'Garbage'
+#     },
+#     'GD' : {
+#         'color' : color.RED,
+#         'description' : 'Dritto'
+#     },
+#     'GR' : {
+#         'color' : color.END,
+#         'description' : 'Rovescio'
+#     },
+#     'T' : {
+#         'color' : color.END,
+#         'description' : 'Test mode'
+#     }
+# }
 
 for i in session_input:
     if os.path.isfile(i) and i not in data_items:

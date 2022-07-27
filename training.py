@@ -49,7 +49,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-n','--name', dest='name', required=True, help="session name")
 parser.add_argument('-e','--epoch', dest='epoch', required=True, type=int, help="number of epochs")
 parser.add_argument('-d','--dataset', dest='dataset', required=True, nargs='*', help="dataset path")
-parser.add_argument('-c','--classes', dest='classes', nargs='*', default=['G', 'GD', 'GR'], help="classes to train")
+parser.add_argument('-c','--classes', dest='classes', nargs='*', default=['G', 'SQ', 'P'], help="classes to train")
 parser.add_argument('-s','--split', dest='split', default='0.7', help="choice of dataset splitting")
 parser.add_argument('-o','--overwrite', dest='overwrite', action='store_true', help="overwrite the session if it already exists")
 parser.add_argument('-b','--batchsize', dest='batchsize', default=32, type=int, help="batchsize value")
@@ -62,8 +62,8 @@ parser.add_argument('-v','--separate_validation', dest='separate_validation', ac
 parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calibration file')
 parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
 
-parser.add_argument('--flen', dest='flen', default=2.50, type=float, help="frame lenght in seconds")
-parser.add_argument('--fshift', dest='fshift', default=1.25, type=float, help="frame shift in seconds")
+parser.add_argument('--flen', dest='flen', default=3.350, type=float, help="frame lenght in seconds")
+parser.add_argument('--fshift', dest='fshift', default=2.25, type=float, help="frame shift in seconds")
 parser.add_argument('--dscaling', dest='dscaling', type=int, default=7, help='random seed for dataset randomization')
 parser.add_argument('--median', dest='median', type=int, default=1, help='median value')
 
@@ -402,12 +402,12 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
 
                         for x_i, y_i, z_i in zip(temp_X[0][0], temp_X[1][0], temp_X[2][0]):
                             temp = np.matmul(np.array([x_i, y_i, z_i]), calibration_matrix)
-                            X.append(temp[0])
-                            Y.append(temp[1])
+                            cal_X.append(temp[0])
+                            cal_Y.append(temp[1])
                             if gforce:
-                                Z.append(temp[2] - 981)
+                                cal_Z.append(temp[2] - 981)
                             else:
-                                Z.append(temp[2])
+                                cal_Z.append(temp[2])
                         temp_X = [[cal_X], [cal_Y], [cal_Z]]
 
                     if args.separate_validation:
