@@ -114,7 +114,7 @@ if not os.path.isdir(session_path):
         exit()
 
 CONFIG_CHARACTERISTIC_UUID = "00000002-ffff-11e1-ac36-0002a5d5c51b"
-SENSOR_CHARACTERISTIC_UUID = "14000000-0001-11e1-ac36-0002a5d5c51b"
+SENSOR_CHARACTERISTIC_UUID = "00000000-0001-11e1-ac36-0002a5d5c51b" # OLD version "14000000-0001-11e1-ac36-0002a5d5c51b"
 
 string_len = 16
 progress_len = string_len * 2 - 1
