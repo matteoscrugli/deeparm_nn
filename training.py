@@ -1184,7 +1184,24 @@ time.sleep(0.2)
 
 save_model(model_quantized, '_quantized')
 
+
+
 f = open(session_path+"model_quantized.h", "w")
+
+f.write(f"#define CONV1_INPUT_DIM {conv_indim}\n")
+f.write(f"#define POOL_KS {pool_ks}\n")
+f.write(f"#define CONV1_IF {conv_1_if}\n")
+f.write(f"#define CONV1_OF {conv_1_of}\n")
+f.write(f"#define CONV1_KS {conv_1_ks}\n")
+f.write(f"#define CONV2_IF {conv_2_if}\n")
+f.write(f"#define CONV2_OF {conv_2_of}\n")
+f.write(f"#define CONV2_KS {conv_2_ks}\n")
+f.write(f"#define FC1_INPUT_DIM {fully_1_indim}\n")
+f.write(f"#define FC1_OUTPUT_DIM {fully_1_outdim}\n")
+f.write(f"#define FC2_INPUT_DIM {fully_2_indim}\n")
+f.write(f"#define FC2_OUTPUT_DIM {fully_2_outdim}\n")
+f.write('\n')
+
 for param_tensor in model_quantized.state_dict():
     try:
         temp_size = model_quantized.state_dict()[param_tensor].size()
@@ -1193,10 +1210,15 @@ for param_tensor in model_quantized.state_dict():
     if temp_size not in [torch.Size([]), torch.Size([1])]:
         first = True
         if model_quantized.state_dict()[param_tensor].dtype in [torch.qint8, torch.quint8]:
-            temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
+            print('A', param_tensor)
+            if ('conv' in param_tensor):
+                temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten('F').reshape((temp_size[1]*temp_size[3], temp_size[0])).flatten('F')
+            else:
+                temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
             f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_SCALE {model_quantized.state_dict()[param_tensor].q_scale()}\n")
             f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_ZERO_POINT {model_quantized.state_dict()[param_tensor].q_zero_point()}\n")
         else:
+            print('B', param_tensor)
             temp_data = model_quantized.state_dict()[param_tensor].numpy().flatten()
         f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_DIM {len(temp_data)}\n")
         f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}" + ' {')
@@ -1215,6 +1237,7 @@ for param_tensor in model_quantized.state_dict():
                     f.write(f', {i}')
         f.write('}\n')
     else:
+        print('C', param_tensor)
         if model_quantized.state_dict()[param_tensor].dtype in [torch.qint8, torch.quint8]:
             temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()[0]
             f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_SCALE {model_quantized.state_dict()[param_tensor].q_scale()}\n")
