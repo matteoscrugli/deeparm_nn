@@ -64,7 +64,7 @@ parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_tr
 
 parser.add_argument('--flen', dest='flen', default=3.350, type=float, help="frame lenght in seconds")
 parser.add_argument('--fshift', dest='fshift', default=2.25, type=float, help="frame shift in seconds")
-parser.add_argument('--dscaling', dest='dscaling', type=int, default=7, help='random seed for dataset randomization')
+parser.add_argument('--dscaling', dest='dscaling', type=int, default=5, help='random seed for dataset randomization')
 parser.add_argument('--median', dest='median', type=int, default=1, help='median value')
 
 parser.add_argument('--augrsize', dest='augrsize', type=int, nargs=3, default=[0, 0, 1], help='zoom/dezoom augmentation')
@@ -1188,18 +1188,24 @@ save_model(model_quantized, '_quantized')
 
 f = open(session_path+"model_quantized.h", "w")
 
-f.write(f"#define CONV1_INPUT_DIM {conv_indim}\n")
-f.write(f"#define POOL_KS {pool_ks}\n")
+f.write(f"#define PYTORCH_MODEL\n")
+f.write('\n')
+f.write(f"#define CONV1_IN_DIM {conv_indim}\n")
 f.write(f"#define CONV1_IF {conv_1_if}\n")
 f.write(f"#define CONV1_OF {conv_1_of}\n")
-f.write(f"#define CONV1_KS {conv_1_ks}\n")
+f.write(f"#define CONV1_K_DIM {conv_1_ks}\n")
+f.write('\n')
 f.write(f"#define CONV2_IF {conv_2_if}\n")
 f.write(f"#define CONV2_OF {conv_2_of}\n")
-f.write(f"#define CONV2_KS {conv_2_ks}\n")
-f.write(f"#define FC1_INPUT_DIM {fully_1_indim}\n")
-f.write(f"#define FC1_OUTPUT_DIM {fully_1_outdim}\n")
-f.write(f"#define FC2_INPUT_DIM {fully_2_indim}\n")
-f.write(f"#define FC2_OUTPUT_DIM {fully_2_outdim}\n")
+f.write(f"#define CONV2_K_DIM {conv_2_ks}\n")
+f.write('\n')
+f.write(f"#define POOL_K_DIM {pool_ks}\n")
+f.write('\n')
+f.write(f"#define FC1_IN_DIM {fully_1_indim}\n")
+f.write(f"#define FC1_OUT_DIM {fully_1_outdim}\n")
+f.write('\n')
+f.write(f"#define FC2_IN_DIM {fully_2_indim}\n")
+f.write(f"#define FC2_OUT_DIM {fully_2_outdim}\n")
 f.write('\n')
 
 for param_tensor in model_quantized.state_dict():
@@ -1240,8 +1246,8 @@ for param_tensor in model_quantized.state_dict():
         print('C', param_tensor)
         if model_quantized.state_dict()[param_tensor].dtype in [torch.qint8, torch.quint8]:
             temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()[0]
-            f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_SCALE {model_quantized.state_dict()[param_tensor].q_scale()}\n")
-            f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_ZERO_POINT {model_quantized.state_dict()[param_tensor].q_zero_point()}\n")
+            f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_OUT_SCALE {model_quantized.state_dict()[param_tensor].q_scale()}\n")
+            f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_OUT_ZERO_POINT {model_quantized.state_dict()[param_tensor].q_zero_point()}\n")
         else:
             temp_data = model_quantized.state_dict()[param_tensor].numpy().flatten()[0]
         f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()} {temp_data}\n")
