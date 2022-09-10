@@ -555,7 +555,7 @@ class Net(nn.Module):
 
         super(Net, self).__init__()
 
-        self.relu6 = False
+        # self.relu6 = False
         self.debug = False
         self.quantization = False
         self.quantization_inf = False
@@ -605,7 +605,7 @@ class Net(nn.Module):
             f.write("\n\nconv1\n")
             f.write(str(x))
 
-        x = F.relu6(x)
+        x = F.relu(x)
 
         if(self.debug):
             f.write("\n\nrelu1\n")
@@ -625,7 +625,7 @@ class Net(nn.Module):
             f.write("\n\nconv2\n")
             f.write(str(x))
 
-        x = F.relu6(x)
+        x = F.relu(x)
 
         if(self.debug):
             f.write("\n\nrelu2\n")
@@ -651,7 +651,7 @@ class Net(nn.Module):
             f.write("\n\nfc1\n")
             f.write(str(x))
 
-        x = F.relu6(x)
+        x = F.relu(x)
 
         if(self.debug):
             f.write("\n\nrelu3\n")
