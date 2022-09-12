@@ -1220,7 +1220,7 @@ for param_tensor in model_quantized.state_dict():
             if ('conv' in param_tensor):
                 temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten('F').reshape((temp_size[1]*temp_size[3], temp_size[0])).flatten('F')
             else:
-                temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
+                temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten('F').reshape((temp_size[1]*temp_size[3], temp_size[0])).flatten('F')
             f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_SCALE {model_quantized.state_dict()[param_tensor].q_scale()}\n")
             f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_ZERO_POINT {model_quantized.state_dict()[param_tensor].q_zero_point()}\n")
         else:
