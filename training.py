@@ -50,7 +50,7 @@ parser.add_argument('-n','--name', dest='name', required=True, help="session nam
 parser.add_argument('-e','--epoch', dest='epoch', required=True, type=int, help="number of epochs")
 parser.add_argument('-d','--dataset', dest='dataset', required=True, nargs='*', help="dataset path")
 parser.add_argument('-c','--classes', dest='classes', nargs='*', default=['G', 'SQ', 'P'], help="classes to train")
-parser.add_argument('-s','--split', dest='split', default='0.7', help="choice of dataset splitting")
+parser.add_argument('-s','--split', dest='split', default='0.8', help="choice of dataset splitting")
 parser.add_argument('-o','--overwrite', dest='overwrite', action='store_true', help="overwrite the session if it already exists")
 parser.add_argument('-b','--batchsize', dest='batchsize', default=32, type=int, help="batchsize value")
 # parser.add_argument('-a','--augmentation', dest='augmentation', nargs=2, type=int, default=[0,1], help='augmentation, number of lateral shifts and pitch (two arguments)')
@@ -713,11 +713,11 @@ dim_batches = 25
 model = Net()
 
 # optimizer = optim.Adam(model.parameters(), lr=0.005)
-# optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0)
+# optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.8)
+# optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0)
 
 # optimizer = torch.optim.Adagrad(model.parameters(), lr=0.01, lr_decay=0, weight_decay=0, initial_accumulator_value=0, eps=1e-10)
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
 # optimizer = torch.optim.ASGD(model.parameters(), lr=0.01, lambd=0.0001, alpha=0.75, t0=1000000.0, weight_decay=0)
 
 criterion = nn.CrossEntropyLoss()
@@ -1220,7 +1220,7 @@ for param_tensor in model_quantized.state_dict():
             if ('conv' in param_tensor):
                 temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten('F').reshape((temp_size[1]*temp_size[3], temp_size[0])).flatten('F')
             else:
-                temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten('F').reshape((temp_size[1]*temp_size[3], temp_size[0])).flatten('F')
+                temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
             f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_SCALE {model_quantized.state_dict()[param_tensor].q_scale()}\n")
             f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_ZERO_POINT {model_quantized.state_dict()[param_tensor].q_zero_point()}\n")
         else:
