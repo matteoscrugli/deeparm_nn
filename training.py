@@ -64,7 +64,7 @@ parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_tr
 
 parser.add_argument('--flen', dest='flen', default=3.350, type=float, help="frame lenght in seconds")
 parser.add_argument('--fshift', dest='fshift', default=2.25, type=float, help="frame shift in seconds")
-parser.add_argument('--dscaling', dest='dscaling', type=int, default=5, help='random seed for dataset randomization')
+parser.add_argument('--dscaling', dest='dscaling', type=int, default=3, help='random seed for dataset randomization')
 parser.add_argument('--median', dest='median', type=int, default=1, help='median value')
 
 parser.add_argument('--augrsize', dest='augrsize', type=int, nargs=3, default=[0, 0, 1], help='zoom/dezoom augmentation')
@@ -353,7 +353,10 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                 frames = [h - int(frame_len / 2) for h in history['events']]
                 temp_class = [f"{history['class']}"] * len(frames)
 
-                temp_events = [int((a + b) / 2) for a, b in zip(history['events'], history['events'][1:])]
+                if history['class'] == 'SQ':
+                    temp_events = []
+                else:
+                    temp_events = [int((a + b) / 2) for a, b in zip(history['events'], history['events'][1:])]
 
                 temp_newclass = 'G' # f"{history['class']}_R"
 

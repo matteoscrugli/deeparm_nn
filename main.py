@@ -6,9 +6,9 @@ np.set_printoptions(threshold=sys.maxsize)
 
 type = 'NORMAL'
 
-a = np.asarray([[-30.5618133545,  39.0906906128, -23.4544143677]])
+a = np.asarray([[ -6.4562344551, -17.7546443939,  15.0645465851]])
 
-scale = 0.7107398509979248
+scale = 0.5380195379257202
 
 
 if type == 'NORMAL':
