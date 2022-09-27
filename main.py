@@ -1,25 +1,50 @@
-import json
-import os
+import sys
+import numpy as np
 
-dir = 'dataset/matteo/R'
-file = 'dataset/matteo/R/20211028-190527.json'
-size = 215
 
-# for folder in os.listdir(dir):
-    # if os.path.isdir(f'dataset/raw/{folder}'):
-    # for file in os.listdir(dir):
-# with open(f'{dir}/{file}', 'r') as json_file:
-with open(file, 'r') as json_file:
-    history = json.load(json_file)
-with open('signalx.txt', 'w') as f:
-    for i, x in enumerate(history['data']['x']):
-        if i == 215:
-            break
-        f.write(f'{i} {x}\n')
-with open('signaly.txt', 'w') as f:
-    for i, y in enumerate(history['data']['x']):
-        if i == 215:
-            break
-        f.write(f'{215 - i} {-y}\n')
-# exit()
-# print(f"dataset/raw/{folder}/{file}: [{len(history['data']['x'])}, {len(history['data']['y'])}, {len(history['data']['z'])}]")
+np.set_printoptions(threshold=sys.maxsize)
+
+type = 'NORMAL'
+
+a = np.asarray([[ -6.4562344551, -17.7546443939,  15.0645465851]])
+
+scale = 0.5380195379257202
+
+
+if type == 'NORMAL':
+  for item in a.flatten():
+    if scale == 1:
+      print(item, end = ', ')
+    else:
+      print(round(item/scale), end = ', ')
+
+
+
+if type == 'INPUT':
+  for item in a.flatten('F'):
+    if scale == 1:
+      print(item, end = ', ')
+    else:
+      print(round(item/scale), end = ', ')
+
+
+
+if type == 'CONV1':
+  for item in a.flatten('F'):
+    if scale == 1:
+      print(item, end = ', ')
+    else:
+      print(round(item/scale), end = ', ')
+
+
+
+if type == 'FC1':
+  a = a.reshape(100,320)
+  
+  for i in range(len(a)):
+    a[i] = a[i].reshape(20,16).flatten('F')
+  for item in a.flatten():
+    if scale == 1:
+      print(item, end = ', ')
+    else:
+      print(round(item/scale), end = ', ')

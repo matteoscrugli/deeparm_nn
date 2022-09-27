@@ -1,4 +1,4 @@
-from turtle import down
+#from turtle import down
 import torch
 import torchvision
 import torch.quantization
@@ -8,9 +8,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import pickle as pk
-import pandas as pd
-import wfdb
-import pywt
+# import pandas as pd
+# import wfdb
+# import pywt
 #import h5py
 import math
 import statistics
@@ -49,8 +49,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-n','--name', dest='name', required=True, help="session name")
 parser.add_argument('-e','--epoch', dest='epoch', required=True, type=int, help="number of epochs")
 parser.add_argument('-d','--dataset', dest='dataset', required=True, nargs='*', help="dataset path")
-parser.add_argument('-c','--classes', dest='classes', nargs='*', default=['G', 'GD', 'GR'], help="classes to train")
-parser.add_argument('-s','--split', dest='split', default='0.7', help="choice of dataset splitting")
+parser.add_argument('-c','--classes', dest='classes', nargs='*', default=['G', 'SQ', 'P'], help="classes to train")
+parser.add_argument('-s','--split', dest='split', default='0.8', help="choice of dataset splitting")
 parser.add_argument('-o','--overwrite', dest='overwrite', action='store_true', help="overwrite the session if it already exists")
 parser.add_argument('-b','--batchsize', dest='batchsize', default=32, type=int, help="batchsize value")
 # parser.add_argument('-a','--augmentation', dest='augmentation', nargs=2, type=int, default=[0,1], help='augmentation, number of lateral shifts and pitch (two arguments)')
@@ -62,9 +62,9 @@ parser.add_argument('-v','--separate_validation', dest='separate_validation', ac
 parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calibration file')
 parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
 
-parser.add_argument('--flen', dest='flen', default=2.50, type=float, help="frame lenght in seconds")
-parser.add_argument('--fshift', dest='fshift', default=1.25, type=float, help="frame shift in seconds")
-parser.add_argument('--dscaling', dest='dscaling', type=int, default=7, help='random seed for dataset randomization')
+parser.add_argument('--flen', dest='flen', default=3.350, type=float, help="frame lenght in seconds")
+parser.add_argument('--fshift', dest='fshift', default=2.25, type=float, help="frame shift in seconds")
+parser.add_argument('--dscaling', dest='dscaling', type=int, default=3, help='random seed for dataset randomization')
 parser.add_argument('--median', dest='median', type=int, default=1, help='median value')
 
 parser.add_argument('--augrsize', dest='augrsize', type=int, nargs=3, default=[0, 0, 1], help='zoom/dezoom augmentation')
@@ -322,7 +322,7 @@ if args.separate_validation:
     data_files_train = temp_data_files_train
     data_class_train = temp_data_class_train
 
-else:      
+else:
     if random_seed == None:
         random_seed = 0
         np.random.seed(random_seed)
@@ -353,7 +353,10 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                 frames = [h - int(frame_len / 2) for h in history['events']]
                 temp_class = [f"{history['class']}"] * len(frames)
 
-                temp_events = [int((a + b) / 2) for a, b in zip(history['events'], history['events'][1:])]
+                if history['class'] == 'SQ':
+                    temp_events = []
+                else:
+                    temp_events = [int((a + b) / 2) for a, b in zip(history['events'], history['events'][1:])]
 
                 temp_newclass = 'G' # f"{history['class']}_R"
 
@@ -402,12 +405,12 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
 
                         for x_i, y_i, z_i in zip(temp_X[0][0], temp_X[1][0], temp_X[2][0]):
                             temp = np.matmul(np.array([x_i, y_i, z_i]), calibration_matrix)
-                            X.append(temp[0])
-                            Y.append(temp[1])
+                            cal_X.append(temp[0])
+                            cal_Y.append(temp[1])
                             if gforce:
-                                Z.append(temp[2] - 981)
+                                cal_Z.append(temp[2] - 981)
                             else:
-                                Z.append(temp[2])
+                                cal_Z.append(temp[2])
                         temp_X = [[cal_X], [cal_Y], [cal_Z]]
 
                     if args.separate_validation:
@@ -555,7 +558,7 @@ class Net(nn.Module):
 
         super(Net, self).__init__()
 
-        self.relu6 = False
+        # self.relu6 = False
         self.debug = False
         self.quantization = False
         self.quantization_inf = False
@@ -605,7 +608,7 @@ class Net(nn.Module):
             f.write("\n\nconv1\n")
             f.write(str(x))
 
-        x = F.relu6(x)
+        x = F.relu(x)
 
         if(self.debug):
             f.write("\n\nrelu1\n")
@@ -625,7 +628,7 @@ class Net(nn.Module):
             f.write("\n\nconv2\n")
             f.write(str(x))
 
-        x = F.relu6(x)
+        x = F.relu(x)
 
         if(self.debug):
             f.write("\n\nrelu2\n")
@@ -651,7 +654,7 @@ class Net(nn.Module):
             f.write("\n\nfc1\n")
             f.write(str(x))
 
-        x = F.relu6(x)
+        x = F.relu(x)
 
         if(self.debug):
             f.write("\n\nrelu3\n")
@@ -713,11 +716,11 @@ dim_batches = 25
 model = Net()
 
 # optimizer = optim.Adam(model.parameters(), lr=0.005)
-# optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0)
+# optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.8)
+# optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0)
 
 # optimizer = torch.optim.Adagrad(model.parameters(), lr=0.01, lr_decay=0, weight_decay=0, initial_accumulator_value=0, eps=1e-10)
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
 # optimizer = torch.optim.ASGD(model.parameters(), lr=0.01, lambd=0.0001, alpha=0.75, t0=1000000.0, weight_decay=0)
 
 criterion = nn.CrossEntropyLoss()
@@ -1067,6 +1070,57 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, ntrain_bat
           .format(top1=top1, top5=top5))
     return
 
+def convert_state_dict(src_dict): #1
+    """Return the correct mapping of tensor name and value
+
+    Mapping from the names of torchvision model to our resnet conv_body and box_head.
+    """
+    dst_dict = {}
+    for k, v in src_dict.items():
+        toks = k.split('.')
+        if k.startswith('layer'):
+            assert len(toks[0]) == 6
+            res_id = int(toks[0][5]) + 1
+            name = '.'.join(['res%d' % res_id] + toks[1:])
+            dst_dict[name] = v
+        elif k.startswith('fc'):
+            continue
+        else:
+            name = '.'.join(['res1'] + toks)
+            dst_dict[name] = v
+    return dst_dict
+
+def model_state_dict_parallel_convert(state_dict, mode): #2
+    from collections import OrderedDict
+    new_state_dict = OrderedDict()
+    if mode == 'to_single':
+        for k, v in state_dict.items():
+            name = k[7:]  # remove 'module.' of DataParallel
+            new_state_dict[name] = v
+    elif mode == 'to_parallel':
+        for k, v in state_dict.items():
+            name = 'module.' + k  # add 'module.' of DataParallel
+            new_state_dict[name] = v
+    elif mode == 'same':
+        new_state_dict = state_dict
+    else:
+        raise Exception('mode = to_single / to_parallel')
+
+    return new_state_dict
+
+def convert_state_dict_type(state_dict, ttype=torch.FloatTensor): #3
+    if isinstance(state_dict, dict):
+        cpu_dict = OrderedDict()
+        for k, v in state_dict.items():
+            cpu_dict[k] = convert_state_dict_type(v)
+        return cpu_dict
+    elif isinstance(state_dict, list):
+        return [convert_state_dict_type(v) for v in state_dict]
+    elif torch.is_tensor(state_dict):
+        return state_dict.type(ttype)
+    else:
+        return state_dict
+
 
 
 
@@ -1132,6 +1186,105 @@ time.sleep(0.2)
 # print('\n\nEvaluation accuracy on %d samples, %.3f'%(num_eval_batches * eval_batch_size, top1.avg))
 
 save_model(model_quantized, '_quantized')
+
+
+
+f = open(session_path+"model_quantized.h", "w")
+
+f.write(f"#define PYTORCH_MODEL\n")
+f.write('\n')
+f.write(f"#define CONV1_IN_DIM {conv_indim}\n")
+f.write(f"#define CONV1_IF {conv_1_if}\n")
+f.write(f"#define CONV1_OF {conv_1_of}\n")
+f.write(f"#define CONV1_K_DIM {conv_1_ks}\n")
+f.write('\n')
+f.write(f"#define CONV2_IF {conv_2_if}\n")
+f.write(f"#define CONV2_OF {conv_2_of}\n")
+f.write(f"#define CONV2_K_DIM {conv_2_ks}\n")
+f.write('\n')
+f.write(f"#define POOL_K_DIM {pool_ks}\n")
+f.write('\n')
+f.write(f"#define FC1_IN_DIM {fully_1_indim}\n")
+f.write(f"#define FC1_OUT_DIM {fully_1_outdim}\n")
+f.write('\n')
+f.write(f"#define FC2_IN_DIM {fully_2_indim}\n")
+f.write(f"#define FC2_OUT_DIM {fully_2_outdim}\n")
+f.write('\n')
+
+for param_tensor in model_quantized.state_dict():
+    try:
+        temp_size = model_quantized.state_dict()[param_tensor].size()
+    except:
+        continue
+    if temp_size not in [torch.Size([]), torch.Size([1])]:
+        first = True
+        if model_quantized.state_dict()[param_tensor].dtype in [torch.qint8, torch.quint8]:
+            print('A', param_tensor)
+            if ('conv' in param_tensor):
+                temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten('F').reshape((temp_size[1]*temp_size[3], temp_size[0])).flatten('F')
+            else:
+                temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
+            f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_SCALE {model_quantized.state_dict()[param_tensor].q_scale()}\n")
+            f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_ZERO_POINT {model_quantized.state_dict()[param_tensor].q_zero_point()}\n")
+        else:
+            print('B', param_tensor)
+            temp_data = model_quantized.state_dict()[param_tensor].numpy().flatten()
+        f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_DIM {len(temp_data)}\n")
+        f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}" + ' {')
+        for i in temp_data: #.flatten('F')
+            if 'bias' in param_tensor:
+                if first:
+                    first = False
+                    f.write(f'{int(i)}')
+                else:
+                    f.write(f', {int(i)}')
+            else:
+                if first:
+                    first = False
+                    f.write(f'{i}')
+                else:
+                    f.write(f', {i}')
+        f.write('}\n')
+    else:
+        print('C', param_tensor)
+        if model_quantized.state_dict()[param_tensor].dtype in [torch.qint8, torch.quint8]:
+            temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()[0]
+            f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_OUT_SCALE {model_quantized.state_dict()[param_tensor].q_scale()}\n")
+            f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_OUT_ZERO_POINT {model_quantized.state_dict()[param_tensor].q_zero_point()}\n")
+        else:
+            temp_data = model_quantized.state_dict()[param_tensor].numpy().flatten()[0]
+        f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()} {temp_data}\n")
+    f.write('\n')
+
+# print('')
+# print(model_quantized.state_dict()['conv1.weight'].q_scale())
+# print(model_quantized.state_dict()['conv1.scale'].numpy())
+# print(model_quantized.state_dict()['quant.scale'].numpy())for param_tensor in model_quantized.state_dict():
+# exit()
+
+f = open(session_path+"model_quantized.txt", "w")
+# print("Model's state_dict:")
+for param_tensor in model_quantized.state_dict():
+    try:
+        f.write(f"{param_tensor}, {model_quantized.state_dict()[param_tensor].size()}\n")
+        # print(param_tensor, ", ", model_quantized.state_dict()[param_tensor].size())
+    except:
+        f.write(f"{param_tensor}, Size error\n")
+        # print(param_tensor, "Size error")
+
+    f.write(str(model_quantized.state_dict()[param_tensor]))
+    f.write('\n\n-----------\n\n')
+
+    # print(model_quantized.state_dict()[param_tensor])
+    # print('\n-----------\n')
+f.close()
+
+# # Print optimizer's state_dict
+# print("Optimizer's state_dict:")
+# for var_name in optimizer.state_dict():
+#     print(var_name, "\t", optimizer.state_dict()[var_name])
+
+# exit()
 
 
 
@@ -1333,22 +1486,22 @@ model_quantized.debug = True
 
 # FIXME
 
-# for i, data in enumerate(loader_valid):
-#
-#     inputs, labels = data
-#
-#     if(model_quantized.debug):
-#
-#         for j in range(0,value_batch_size):
-#             model_quantized.temp = j
-#             outputs = model_quantized(inputs[j].unsqueeze_(0).float())
-#
-#         torch.set_printoptions(threshold=500000, precision=10) #,linehalf_windowth=20
-#         f = open(session_path+"inference_data_example/labels.txt", "w")
-#         f.write(str(labels))
-#         f.close()
-#
-#     break
+for i, data in enumerate(loader_valid):
+
+    inputs, labels = data
+
+    if(model_quantized.debug):
+
+        for j in range(0,value_batch_size):
+            model_quantized.temp = j
+            outputs = model_quantized(inputs[j].unsqueeze_(0).float())
+
+        torch.set_printoptions(threshold=500000, precision=10) #,linehalf_windowth=20
+        f = open(session_path+"inference_data_example/labels.txt", "w")
+        f.write(str(labels))
+        f.close()
+
+    break
 
 training_parameters = {
     'session_name': session_name,
