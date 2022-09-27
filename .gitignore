@@ -1,4 +1,5 @@
 # custom
+venv*/
 dataset/
 testset/
 output/
