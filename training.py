@@ -64,7 +64,7 @@ parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_tr
 
 parser.add_argument('--flen', dest='flen', default=3.350, type=float, help="frame lenght in seconds")
 parser.add_argument('--fshift', dest='fshift', default=2.25, type=float, help="frame shift in seconds")
-parser.add_argument('--dscaling', dest='dscaling', type=int, default=3, help='random seed for dataset randomization')
+parser.add_argument('--dscaling', dest='dscaling', type=int, default=5, help='random seed for dataset randomization')
 parser.add_argument('--median', dest='median', type=int, default=1, help='median value')
 
 parser.add_argument('--augrsize', dest='augrsize', type=int, nargs=3, default=[0, 0, 1], help='zoom/dezoom augmentation')
@@ -349,6 +349,20 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
         # exit()
         frame_shift = int(frame_shift_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
         for aug_shift in augmentation_shift:
+            if 'events' in history and True:
+                if history['class'] == 'SQ' and True:
+                    temp_list = []
+                    for j in history['events']:
+                        for k in range(-50,51, 10):
+                            if k:
+                                temp_list.append(j + k)
+                    history['events'] += temp_list
+                if history['class'] == 'P' and True:
+                    temp_list = []
+                    for j in history['events']:
+                        for k in range(-20,21, 4):
+                            if k:
+                                temp_list.append(j + k)
             if 'events' in history:
                 frames = [h - int(frame_len / 2) for h in history['events']]
                 temp_class = [f"{history['class']}"] * len(frames)
@@ -364,6 +378,10 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                     dataset_labels.append(temp_newclass)
                 frames += [h - int(frame_len / 2) for h in temp_events]
                 temp_class += [temp_newclass] * len(temp_events)
+
+                if history['class'] == 'P' and True: # FIXME
+                    frames += [h - int(frame_len / 2) for h in temp_list]
+                    temp_class += [f"{history['class']}"] * len(temp_list)
             else:
                 frames = list(range(0, history['samples'] - frame_len + 1, frame_shift))
             for j, frame in enumerate(frames):
@@ -720,7 +738,7 @@ model = Net()
 # optimizer = optim.Adadelta(model.parameters(), lr=1.0, rho=0.9, eps=1e-06, weight_decay=0)
 
 # optimizer = torch.optim.Adagrad(model.parameters(), lr=0.01, lr_decay=0, weight_decay=0, initial_accumulator_value=0, eps=1e-10)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
 # optimizer = torch.optim.ASGD(model.parameters(), lr=0.01, lambd=0.0001, alpha=0.75, t0=1000000.0, weight_decay=0)
 
 criterion = nn.CrossEntropyLoss()
@@ -1346,6 +1364,8 @@ f.close()
 #██╔══╝  ╚██╗ ██╔╝██╔══██║██║     ██║   ██║██╔══██║   ██║   ██║██║   ██║██║╚██╗██║
 #███████╗ ╚████╔╝ ██║  ██║███████╗╚██████╔╝██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║
 #╚══════╝  ╚═══╝  ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
+
+model.quantization = False
 
 cnt = 0
 cnt_t = 0

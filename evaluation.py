@@ -1,3 +1,4 @@
+#%%
 import torch
 import torchvision
 import torch.quantization
@@ -8,7 +9,7 @@ import torch.optim as optim
 import numpy as np
 import pickle as pk
 import pandas as pd
-import wfdb
+# import wfdb
 import math
 import statistics
 import os
@@ -27,6 +28,10 @@ import threading
 from torch.quantization import QuantStub, DeQuantStub
 from pathlib import Path
 from torch.utils import data
+
+import matplotlib
+import matplotlib.pyplot as plt
+import tikzplotlib
 
 
 
@@ -56,7 +61,11 @@ parser.add_argument('--csort', dest='csort', action='store_true', help="sort for
 parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calibration file')
 parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
 
-args = parser.parse_args()
+if 'ipykernel_launcher.py' in sys.argv[0]:
+    args = parser.parse_args('-t output/train/papertest5020_5 -i dataset/TT'.split())
+else:
+    args = parser.parse_args()
+
 
 session_train = args.train
 session_input = args.input
@@ -196,6 +205,8 @@ def rotation_matrix_from_vectors(vec1, vec2):
 
 
 
+#%%
+
 #██████╗  █████╗ ████████╗ █████╗ ███████╗███████╗████████╗
 #██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝
 #██║  ██║███████║   ██║   ███████║███████╗█████╗     ██║
@@ -271,7 +282,15 @@ for dataset in dataset_path:
                 data_class.append(dirpath.split('/')[-1])
                 data_files.append(filename)
 
+# print(data_items)
+# print(data_class)
+# print(data_files)
+# # exit()
 
+X = []
+Y = []
+C = []
+R = []
 
 X_train = []
 M_train = []
@@ -284,6 +303,8 @@ M_valid = []
 Y_valid = []
 C_valid = []
 R_valid = []
+
+
 
 if separate_validation:
     if random_seed == None:
@@ -304,8 +325,8 @@ if separate_validation:
             for l in dataset_labels:
                 temp_list.append(temp_data_class_train.count(l))
 
-            if (max(temp_list) - min(temp_list)) <= 1 and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
-                if 'B' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
+            if (max(temp_list) - min(temp_list)) <= 1: # and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
+                if 'SQ' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
                     if temp_list[0] == max(temp_list) and temp_list[-1] == max(temp_list):
                         balanced = True
                 else:
@@ -316,19 +337,16 @@ if separate_validation:
         np.random.seed(random_seed)
 
         temp_list = list(zip(data_items, data_class, data_files))
-        # print(temp_list)
-        # exit()
         np.random.shuffle(temp_list)
         temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
 
         temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
         temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
 
-    # print(f'Random seed: {random_seed}')
     data_files_train = temp_data_files_train
     data_class_train = temp_data_class_train
 
-else:      
+else:
     if random_seed == None:
         random_seed = 0
         np.random.seed(random_seed)
@@ -346,13 +364,51 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
 
     for aug_rsize in augmentation_rsize:
         frame_len = int(frame_len_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
+        # print('fram_len')
+        # print(frame_len_sec)
+        # print(history['frequency'])
+        # print(aug_rsize)
+        # print(downscaling)
+        # print((1 + (aug_rsize / downscaling)))
+        # exit()
         frame_shift = int(frame_shift_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
         for aug_shift in augmentation_shift:
+            if 'events' in history and True:
+                if history['class'] == 'SQ' and True:
+                    temp_list = []
+                    for j in history['events']:
+                        for k in range(-50,51, 10):
+                            if k:
+                                temp_list.append(j + k)
+                    history['events'] += temp_list
+                if history['class'] == 'P' and True:
+                    temp_list = []
+                    for j in history['events']:
+                        for k in range(-50,51, 10):
+                            if k:
+                                temp_list.append(j + k)
             if 'events' in history:
                 frames = [h - int(frame_len / 2) for h in history['events']]
+                temp_class = [f"{history['class']}"] * len(frames)
+
+                if history['class'] == 'SQ':
+                    temp_events = []
+                else:
+                    temp_events = [int((a + b) / 2) for a, b in zip(history['events'], history['events'][1:])]
+
+                temp_newclass = 'G' # f"{history['class']}_R"
+
+                if temp_newclass not in dataset_labels:
+                    dataset_labels.append(temp_newclass)
+                frames += [h - int(frame_len / 2) for h in temp_events]
+                temp_class += [temp_newclass] * len(temp_events)
+
+                if history['class'] == 'P' and True: # FIXME
+                    frames += [h - int(frame_len / 2) for h in temp_list]
+                    temp_class += [f"{history['class']}"] * len(temp_list)
             else:
                 frames = list(range(0, history['samples'] - frame_len + 1, frame_shift))
-            for frame in frames:
+            for j, frame in enumerate(frames):
                 if frame + aug_shift >= 0 and frame + frame_shift + aug_shift <= history['samples']: # and sym[i] in sub_labels:
                     temp_X = [[history['data']['x'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]], [history['data']['y'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]], [history['data']['z'][frame + aug_shift : frame + aug_shift + frame_len : downscaling + aug_rsize]]]
                     if median > 1:
@@ -368,7 +424,10 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                             for t in range(len(temp_X[0][0]) - median + 1)
                         ]
                         temp_X = [[temp_X_median], [temp_Y_median], [temp_Z_median]]
-                    temp_Y = dataset_labels.index(history['class'])
+                    if 'events' in history:
+                        temp_Y = dataset_labels.index(temp_class[j])
+                    else:
+                        temp_Y = dataset_labels.index(history['class'])
                     temp_C = True if aug_shift == 0 else False
                     temp_R = data_files.index(file)
 
@@ -385,10 +444,8 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                         cal_X = []
                         cal_Y = []
                         cal_Z = []
-                        # print(temp_X)
+
                         for x_i, y_i, z_i in zip(temp_X[0][0], temp_X[1][0], temp_X[2][0]):
-                            # print(x_i, y_i, z_i)
-                            # exit()
                             temp = np.matmul(np.array([x_i, y_i, z_i]), calibration_matrix)
                             cal_X.append(temp[0])
                             cal_Y.append(temp[1])
@@ -396,9 +453,6 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                                 cal_Z.append(temp[2] - 981)
                             else:
                                 cal_Z.append(temp[2])
-                            # if session_gforce:
-                            #     temp[2] -= - 981
-                            # X.append(temp)
                         temp_X = [[cal_X], [cal_Y], [cal_Z]]
 
                     if separate_validation:
@@ -418,6 +472,18 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                         Y.append(temp_Y)
                         C.append(temp_C)
                         R.append(temp_R)
+                    # else:
+                    #     if random.random() < dataset_split:
+                    #         X_train.append(temp_X)
+                    #         Y_train.append(temp_Y)
+                    #         C_train.append(temp_C)
+                    #         R_train.append(temp_R)
+                    #     else:
+                    #         if not aug_rsize and not aug_shift: # and not aug_rotat:
+                    #             X_valid.append(temp_X)
+                    #             Y_valid.append(temp_Y)
+                    #             C_valid.append(temp_C)
+                    #             R_valid.append(temp_R)
 
     printProgressBar(i + 1, len(data_items), prefix = 'Dataset building:', suffix = '', length = 50)
 
@@ -501,6 +567,8 @@ print('\n\n')
 
 
 
+#%%
+
 #███╗   ██╗███████╗████████╗██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗
 #████╗  ██║██╔════╝╚══██╔══╝██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝
 #██╔██╗ ██║█████╗     ██║   ██║ █╗ ██║██║   ██║██████╔╝█████╔╝
@@ -533,7 +601,7 @@ class Net(nn.Module):
 
         super(Net, self).__init__()
 
-        self.relu6 = False
+        # self.relu = False
         self.debug = False
         self.quantization = False
         self.quantization_inf = False
@@ -583,7 +651,7 @@ class Net(nn.Module):
             f.write("\n\nconv1\n")
             f.write(str(x))
 
-        x = F.relu6(x)
+        x = F.relu(x)
 
         if(self.debug):
             f.write("\n\nrelu1\n")
@@ -603,7 +671,7 @@ class Net(nn.Module):
             f.write("\n\nconv2\n")
             f.write(str(x))
 
-        x = F.relu6(x)
+        x = F.relu(x)
 
         if(self.debug):
             f.write("\n\nrelu2\n")
@@ -629,7 +697,7 @@ class Net(nn.Module):
             f.write("\n\nfc1\n")
             f.write(str(x))
 
-        x = F.relu6(x)
+        x = F.relu(x)
 
         if(self.debug):
             f.write("\n\nrelu3\n")
@@ -674,6 +742,8 @@ class Net(nn.Module):
 
 
 
+
+#%%
 
 # ██╗      ██████╗  █████╗ ██████╗     ███╗   ███╗ ██████╗ ██████╗ ███████╗██╗
 # ██║     ██╔═══██╗██╔══██╗██╔══██╗    ████╗ ████║██╔═══██╗██╔══██╗██╔════╝██║
@@ -720,6 +790,7 @@ print('\n\n')
 
 
 
+#%%
 #███████╗██╗   ██╗ █████╗ ██╗     ██╗   ██╗ █████╗ ████████╗██╗ ██████╗ ███╗   ██╗
 #██╔════╝██║   ██║██╔══██╗██║     ██║   ██║██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║
 #█████╗  ██║   ██║███████║██║     ██║   ██║███████║   ██║   ██║██║   ██║██╔██╗ ██║
@@ -798,19 +869,46 @@ for l in dataset_labels:
 print(class_dettail['T']['color'] + 'T' + '\r\t' + class_dettail['T']['description'] + color.END)
 print('')
 
+events = []
+linelengths = []
+colorCodes = []
+matplotlib.rcParams['font.size'] = 8.0
+colorCodes_dic = {
+    'G' : [0, 0, 0],
+    'SQ' : [1, 0 , 0],
+    'P' : [0, 0, 1]
+}
+
+events_dic = {
+    'G' : {
+        'x' : [],
+        'y' : [],
+    },
+    'SQ' : {
+        'x' : [],
+        'y' : [],
+    },
+    'P' : {
+        'x' : [],
+        'y' : [],
+    },
+}
+
+color_labels = ['#D0D0D0', 'orange', 'green']
+
 print(color.BOLD + color.UNDERLINE + 'File name\r\t\t\t\t\t\tClass\r\t\t\t\t\t\t\tClassification' + color.END)
 for i, item in enumerate(data_items):
     with open(item, 'r') as json_file:
         history = json.load(json_file)
 
     frame_len = int(frame_len_sec * history['frequency'])
-    frame_shift_sec = 1/4
+    frame_shift_sec = 1 / 4
     frame_shift = int(frame_shift_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
 
     X = []
     Y = []
     for frame in range(0, history['samples'] - frame_len + 1, frame_shift):
-        X_temp = [[history['data']['x'][frame : frame + frame_len : downscaling]], [history['data']['y'][frame : frame + frame_len : downscaling]], [history['data']['z'][frame : frame + frame_len : downscaling]]]
+        X_temp = [[history['data'][0]['x'][frame : frame + frame_len : downscaling]], [history['data'][0]['y'][frame : frame + frame_len : downscaling]], [history['data'][0]['z'][frame : frame + frame_len : downscaling]]]
         if median > 1:
             temp_X_median = []
             temp_Y_median = []
@@ -837,10 +935,28 @@ for i, item in enumerate(data_items):
     # loader = torch.utils.data.DataLoader(dataset, batch_size = value_batch_size, shuffle=False)
     loader = torch.utils.data.DataLoader(dataset, batch_size = X.size(0), shuffle=False)
 
+    # fig = plt.figure(figsize=(7,2)) #figsize=(12,8)) #8x11
+
     for data in loader:
         inputs, labels = data
         outputs = model(inputs.float()) # _quantized FIXME!
         outputs = [list(o).index(max(o)) for o in outputs]
+
+        events.append([i for i, o in enumerate(outputs) if o])
+        linelengths.append(0.8)
+        colorCodes.append(colorCodes_dic[history["class"]])
+
+        for j, o in enumerate(outputs):
+            events_dic[dataset_labels[o]]['y'].append(i)
+            events_dic[dataset_labels[o]]['x'].append(j)
+        
+        for c, d in zip(color_labels, dataset_labels):
+            plt.scatter(events_dic[d]['x'], events_dic[d]['y'], marker="s", c=c, s = 20) #, s = 1
+
+        if i == 2:
+            events.append([])
+            linelengths.append(0.8)
+            colorCodes.append(colorCodes_dic[history["class"]])
 
         if history['class'] in dataset_labels:
             class_color = class_dettail[history['class']]['color']
@@ -851,4 +967,34 @@ for i, item in enumerate(data_items):
         [print(f'{class_dettail[dataset_labels[o]]["color"]}▮{color.END}', end = '') for o in outputs]
         print('')
 
+
+# colorCodes = np.array([[1, 0, 0],
+#                         [1, 0, 0],
+#                         [1, 0, 0],
+#                         [1, 1, 0],
+#                         [0, 0, 1],
+#                         [0, 0, 1],
+#                         [0, 0, 1]])
+                        
+# plt.eventplot(events, linelengths=linelengths, color=colorCodes, linewidths=10)         #, color=colorCodes 
+# plt.xlabel("Time interval [s]",fontsize=14)
+# plt.ylabel("Exercise",fontsize=14)
+# plt.yticks([])
+# # plt.show()
+# plt.savefig("mygraph.png")
+# tikzplotlib.save("mygraph.tex")
+
+plt.xlabel("Time [s]") # ,fontsize=14
+plt.ylabel("Session id") # ,fontsize=14
+# plt.yticks(['Squat', 'Squat', 'Squat', 'Push-up', 'Push-up', 'Push-up'])
+
+labels = ["Other", "Squat", "Push-up"]
+plt.legend(labels, loc='upper center', bbox_to_anchor=(0.5, 1.25))
+# ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=3, fancybox=True, shadow=True)
+plt.savefig("output/plot/raster.png")
+plt.savefig("output/plot/raster.pdf", format="pdf")
+tikzplotlib.save("output/plot/raster.tex")
+
 print('')
+
+# %%
