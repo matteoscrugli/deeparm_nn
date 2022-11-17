@@ -8,6 +8,7 @@ import json
 import matplotlib.pyplot as plt
 from matplotlib.collections import EventCollection
 from scipy.interpolate import make_interp_spline, BSpline
+import tikzplotlib
 
 def dir_path(string):
     if os.path.isdir(string):
@@ -180,5 +181,6 @@ try:
     fig.tight_layout()
     # plt.show()
     plt.savefig("output/plot/cmatrix.pdf", format="pdf")
+    tikzplotlib.save("output/plot/cmatrix.tex")
 except:
     pass
