@@ -87,6 +87,18 @@ devices_params = {
             'y' : 2800,
             'z' : 770,
         }},
+    'M3' : {
+        'address' : 'C0:6E:25:31:20:48',
+        'acc_offset': {
+            'x' : 0,
+            'y' : 0,
+            'z' : 0,
+        },
+        'gyro_offset': {
+            'x' : 0,
+            'y' : 0,
+            'z' : 0,
+        }},
     'B0' : {
         'address' : 'C0:6E:29:31:3B:48',
         'acc_offset': {
