@@ -1207,6 +1207,7 @@ save_model(model_quantized, '_quantized')
 
 
 
+plaincorder = True
 f = open(session_path+"model_quantized.h", "w")
 
 f.write(f"#define PYTORCH_MODEL\n")
@@ -1239,7 +1240,10 @@ for param_tensor in model_quantized.state_dict():
         if model_quantized.state_dict()[param_tensor].dtype in [torch.qint8, torch.quint8]:
             print('A', param_tensor)
             if ('conv' in param_tensor):
-                temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten('F').reshape((temp_size[1]*temp_size[3], temp_size[0])).flatten('F')
+                if plaincorder:
+                    temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
+                else:
+                    temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten('F').reshape((temp_size[1]*temp_size[3], temp_size[0])).flatten('F')
             else:
                 temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
             f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_SCALE {model_quantized.state_dict()[param_tensor].q_scale()}\n")
