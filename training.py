@@ -1244,6 +1244,12 @@ for param_tensor in model_quantized.state_dict():
                     temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
                 else:
                     temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten('F').reshape((temp_size[1]*temp_size[3], temp_size[0])).flatten('F')
+            elif ('fc1' in param_tensor):
+                temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
+                temp_data = temp_data.reshape(fully_1_outdim,conv_2_of * int((((conv_indim - (conv_1_ks - 1)) / pool_ks) - (conv_2_ks - 1)) / pool_ks))
+                for i in range(len(temp_data)):
+                    temp_data[i] = temp_data[i].reshape(conv_2_of, int((((conv_indim - (conv_1_ks - 1)) / pool_ks) - (conv_2_ks - 1)) / pool_ks)).flatten('F') # 
+                temp_data = temp_data.flatten()
             else:
                 temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
             f.write(f"#define {str(param_tensor).replace('.', '_').replace('__', '_').upper()}_SCALE {model_quantized.state_dict()[param_tensor].q_scale()}\n")
