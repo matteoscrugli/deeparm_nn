@@ -1207,7 +1207,7 @@ save_model(model_quantized, '_quantized')
 
 
 
-plaincorder = True
+plaincorder = False
 f = open(session_path+"model_quantized.h", "w")
 
 f.write(f"#define PYTORCH_MODEL\n")
