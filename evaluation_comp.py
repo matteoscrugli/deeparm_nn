@@ -62,7 +62,8 @@ parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calib
 parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
 
 if 'ipykernel_launcher.py' in sys.argv[0]:
-    args = parser.parse_args('-t output/train/papertest5020_5 -i dataset/TT'.split())
+    # args = parser.parse_args('-t output/train/papertest5020_5 -i dataset/TT'.split())
+    args = parser.parse_args('-t output/train/papertest0 -i dataset/TT'.split())
 else:
     args = parser.parse_args()
 
@@ -904,7 +905,7 @@ for i, item in enumerate(data_items):
         history = json.load(json_file)
 
     frame_len = int(frame_len_sec * history['frequency'])
-    frame_shift_sec = 1# / 4
+    frame_shift_sec = 1 #/ 4
     frame_shift = int(frame_shift_sec * (history['frequency'] * (1 + (aug_rsize / downscaling))))
 
     X = []
@@ -968,6 +969,16 @@ for i, item in enumerate(data_items):
         print(f'{item}\r\t\t\t\t\t\t{color.BOLD}{class_color}{history["class"]}{color.END}\r\t\t\t\t\t\t\t', end = '')
         [print(f'{class_dettail[dataset_labels[o]]["color"]}▮{color.END}', end = '') for o in outputs]
         print('')
+
+my_dict = {
+    'model' : session_train.split("/")[-1],
+    'shift' : frame_shift_sec,
+    'dict' : events_dic
+}
+with open(f'{session_train.split("/")[-1]}_{frame_shift_sec}.json', 'w') as f:
+    json.dump(my_dict, f, indent = 4)
+
+#%%
 
 
 # colorCodes = np.array([[1, 0, 0],
