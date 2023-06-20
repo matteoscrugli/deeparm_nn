@@ -82,9 +82,9 @@ if session_calibrate:
     for i in calibration_items:
         with open(i, 'r') as json_file:
             history = json.load(json_file)
-            calibration_x += statistics.median(history['data']['x'])
-            calibration_y += statistics.median(history['data']['y'])
-            calibration_z += statistics.median(history['data']['z'])
+            calibration_x += statistics.median(history['data'][0]['x'])
+            calibration_y += statistics.median(history['data'][0]['y'])
+            calibration_z += statistics.median(history['data'][0]['z'])
     if calibration_items:
         calibration_x = calibration_x / len(calibration_items)
         calibration_y = calibration_y / len(calibration_items)
@@ -119,14 +119,14 @@ for i in data_items:
         for i in range(history['samples']):
             if i + session_median > history['samples']:
                 break
-            x_temp.append(statistics.median(history['data']['x'][i : i + session_median]))
-            y_temp.append(statistics.median(history['data']['y'][i : i + session_median]))
-            z_temp.append(statistics.median(history['data']['z'][i : i + session_median]))
+            x_temp.append(statistics.median(history['data'][0]['x'][i : i + session_median]))
+            y_temp.append(statistics.median(history['data'][0]['y'][i : i + session_median]))
+            z_temp.append(statistics.median(history['data'][0]['z'][i : i + session_median]))
 
     else:
-        x_temp = history['data']['x']
-        y_temp = history['data']['y']
-        z_temp = history['data']['z']
+        x_temp = history['data'][0]['x']
+        y_temp = history['data'][0]['y']
+        z_temp = history['data'][0]['z']
 
     if session_calibrate:
         x = []
