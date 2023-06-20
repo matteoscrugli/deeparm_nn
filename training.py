@@ -50,7 +50,7 @@ parser.add_argument('-n','--name', dest='name', required=True, help="session nam
 parser.add_argument('-e','--epoch', dest='epoch', required=True, type=int, help="number of epochs")
 parser.add_argument('-d','--dataset', dest='dataset', required=True, nargs='*', help="dataset path")
 parser.add_argument('-c','--classes', dest='classes', nargs='*', default=['G', 'SQ', 'P'], help="classes to train")
-parser.add_argument('-s','--split', dest='split', default='0.8', help="choice of dataset splitting")
+parser.add_argument('-s','--split', dest='split', nargs='*', default=['0.7', '0.15', '0.15'], help="choice of dataset splitting")
 parser.add_argument('-o','--overwrite', dest='overwrite', action='store_true', help="overwrite the session if it already exists")
 parser.add_argument('-b','--batchsize', dest='batchsize', default=32, type=int, help="batchsize value")
 # parser.add_argument('-a','--augmentation', dest='augmentation', nargs=2, type=int, default=[0,1], help='augmentation, number of lateral shifts and pitch (two arguments)')
@@ -62,7 +62,7 @@ parser.add_argument('-v','--separate_validation', dest='separate_validation', ac
 parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calibration file')
 parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
 
-parser.add_argument('--flen', dest='flen', default=3.350, type=float, help="frame lenght in seconds")
+parser.add_argument('--flen', dest='flen', default=3.8, type=float, help="frame lenght in seconds")
 parser.add_argument('--fshift', dest='fshift', default=2.25, type=float, help="frame shift in seconds")
 parser.add_argument('--dscaling', dest='dscaling', type=int, default=5, help='random seed for dataset randomization')
 parser.add_argument('--median', dest='median', type=int, default=1, help='median value')
@@ -196,7 +196,7 @@ def rotation_matrix_from_vectors(vec1, vec2):
 #╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝
 
 dataset_path = args.dataset
-dataset_split = float(args.split)
+dataset_split = [float(s) for s in args.split]
 value_batch_size = args.batchsize
 normalization = args.normalization
 random_seed = args.randomseed
@@ -282,47 +282,48 @@ R_valid = []
 
 
 
-if args.separate_validation:
-    if random_seed == None:
-        random_seed = 0
-        balanced = False
-        while not balanced:
-            np.random.seed(random_seed)
+# if args.separate_validation:
+#     if random_seed == None:
+#         random_seed = 0
+#         balanced = False
+#         while not balanced:
+#             np.random.seed(random_seed)
 
-            temp_list = list(zip(data_items, data_class, data_files))
-            np.random.shuffle(temp_list)
-            temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
+#             temp_list = list(zip(data_items, data_class, data_files))
+#             np.random.shuffle(temp_list)
+#             temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
 
-            temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
-            temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
+#             temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
+#             temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
 
-            temp_list = []
+#             temp_list = []
 
-            for l in dataset_labels:
-                temp_list.append(temp_data_class_train.count(l))
+#             for l in dataset_labels:
+#                 temp_list.append(temp_data_class_train.count(l))
 
-            if (max(temp_list) - min(temp_list)) <= 1: # and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
-                if 'SQ' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
-                    if temp_list[0] == max(temp_list) and temp_list[-1] == max(temp_list):
-                        balanced = True
-                else:
-                    balanced = True
-            else:
-                random_seed += 1
-    else:
-        np.random.seed(random_seed)
+#             if (max(temp_list) - min(temp_list)) <= 1: # and random_seed not in [2, 5]: # and temp_list[-1] == min(temp_list)
+#                 if 'SQ' in dataset_labels and 'G' in dataset_labels and False: # specific rule, removeme
+#                     if temp_list[0] == max(temp_list) and temp_list[-1] == max(temp_list):
+#                         balanced = True
+#                 else:
+#                     balanced = True
+#             else:
+#                 random_seed += 1
+#     else:
+#         np.random.seed(random_seed)
 
-        temp_list = list(zip(data_items, data_class, data_files))
-        np.random.shuffle(temp_list)
-        temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
+#         temp_list = list(zip(data_items, data_class, data_files))
+#         np.random.shuffle(temp_list)
+#         temp_data_items, temp_data_class, temp_data_files = zip(*temp_list)
 
-        temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
-        temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
+#         temp_data_files_train = temp_data_files[:round(np.size(temp_data_files, 0) * dataset_split)]
+#         temp_data_class_train = temp_data_class[:round(np.size(temp_data_class, 0) * dataset_split)]
 
-    data_files_train = temp_data_files_train
-    data_class_train = temp_data_class_train
+#     data_files_train = temp_data_files_train
+#     data_class_train = temp_data_class_train
 
-else:
+# else:
+if True:
     if random_seed == None:
         random_seed = 0
         np.random.seed(random_seed)
@@ -431,19 +432,20 @@ for i, (item, file) in enumerate(zip(data_items, data_files)):
                                 cal_Z.append(temp[2])
                         temp_X = [[cal_X], [cal_Y], [cal_Z]]
 
-                    if args.separate_validation:
-                        if file in data_files_train:
-                            X_train.append(temp_X)
-                            Y_train.append(temp_Y)
-                            C_train.append(temp_C)
-                            R_train.append(temp_R)
-                        else:
-                            if not aug_rsize and not aug_shift: # and not aug_rotat:
-                                X_valid.append(temp_X)
-                                Y_valid.append(temp_Y)
-                                C_valid.append(temp_C)
-                                R_valid.append(temp_R)
-                    else:
+                    # if args.separate_validation:
+                    #     if file in data_files_train:
+                    #         X_train.append(temp_X)
+                    #         Y_train.append(temp_Y)
+                    #         C_train.append(temp_C)
+                    #         R_train.append(temp_R)
+                    #     else:
+                    #         if not aug_rsize and not aug_shift: # and not aug_rotat:
+                    #             X_valid.append(temp_X)
+                    #             Y_valid.append(temp_Y)
+                    #             C_valid.append(temp_C)
+                    #             R_valid.append(temp_R)
+                    # else:
+                    if True:
                         X.append(temp_X)
                         Y.append(temp_Y)
                         C.append(temp_C)
@@ -468,15 +470,25 @@ if not args.separate_validation:
     np.random.shuffle(temp_list)
     X, Y, C, R = zip(*temp_list)
 
-    X_train = X[ : round(np.size(X, 0) * dataset_split)]
-    Y_train = Y[ : round(np.size(Y, 0) * dataset_split)]
-    C_train = C[ : round(np.size(C, 0) * dataset_split)]
-    R_train = R[ : round(np.size(R, 0) * dataset_split)]
+    X_train = X[ : round(np.size(X, 0) * dataset_split[0])]
+    Y_train = Y[ : round(np.size(Y, 0) * dataset_split[0])]
+    C_train = C[ : round(np.size(C, 0) * dataset_split[0])]
+    R_train = R[ : round(np.size(R, 0) * dataset_split[0])]
 
-    X_valid = X[round(np.size(X, 0) * dataset_split) : ]
-    Y_valid = Y[round(np.size(Y, 0) * dataset_split) : ]
-    C_valid = C[round(np.size(C, 0) * dataset_split) : ]
-    R_valid = R[round(np.size(R, 0) * dataset_split) : ]
+    # X_valid = X[round(np.size(X, 0) * dataset_split[0]) : ]
+    # Y_valid = Y[round(np.size(Y, 0) * dataset_split[0]) : ]
+    # C_valid = C[round(np.size(C, 0) * dataset_split[0]) : ]
+    # R_valid = R[round(np.size(R, 0) * dataset_split[0]) : ]
+
+    X_valid = X[round(np.size(X, 0) * dataset_split[0]) : round(np.size(X, 0) * dataset_split[0] + np.size(X, 0) * dataset_split[1])]
+    Y_valid = Y[round(np.size(Y, 0) * dataset_split[0]) : round(np.size(X, 0) * dataset_split[0] + np.size(X, 0) * dataset_split[1])]
+    C_valid = C[round(np.size(C, 0) * dataset_split[0]) : round(np.size(X, 0) * dataset_split[0] + np.size(X, 0) * dataset_split[1])]
+    R_valid = R[round(np.size(R, 0) * dataset_split[0]) : round(np.size(X, 0) * dataset_split[0] + np.size(X, 0) * dataset_split[1])]
+
+    X_test = X[round(np.size(X, 0) * dataset_split[0] + np.size(X, 0) * dataset_split[1]) : ]
+    Y_test = Y[round(np.size(Y, 0) * dataset_split[0] + np.size(X, 0) * dataset_split[1]) : ]
+    C_test = C[round(np.size(C, 0) * dataset_split[0] + np.size(X, 0) * dataset_split[1]) : ]
+    R_test = R[round(np.size(R, 0) * dataset_split[0] + np.size(X, 0) * dataset_split[1]) : ]
 
 
 
@@ -500,6 +512,10 @@ X_valid = np.array(X_valid)
 Y_valid = np.array(Y_valid)
 R_valid = np.array(R_valid)
 
+X_test = np.array(X_test)
+Y_test = np.array(Y_test)
+R_test = np.array(R_test)
+
 
 
 
@@ -510,6 +526,8 @@ if normalization:
         X_train[i]=X_train[i]/np.max(np.absolute(X_train[i]))
     for i in range(np.size(X_valid,0)):
         X_valid[i]=X_valid[i]/np.max(np.absolute(X_valid[i]))
+    for i in range(np.size(X_test,0)):
+        X_test[i]=X_test[i]/np.max(np.absolute(X_test[i]))
 
 
 
@@ -518,16 +536,27 @@ if normalization:
 
 X_train = torch.from_numpy(X_train)
 X_valid = torch.from_numpy(X_valid)
+X_test = torch.from_numpy(X_test)
 Y_train = torch.from_numpy(Y_train)
 Y_valid = torch.from_numpy(Y_valid)
+Y_test = torch.from_numpy(Y_test)
+
+X_train = X_train.type(torch.LongTensor)
+X_valid = X_valid.type(torch.LongTensor)
+X_test = X_test.type(torch.LongTensor)
+Y_train = Y_train.type(torch.LongTensor)
+Y_valid = Y_valid.type(torch.LongTensor)
+Y_test = Y_test.type(torch.LongTensor)
 
 
 
 t_dataset_train = torch.utils.data.TensorDataset(X_train,Y_train)
 t_dataset_valid = torch.utils.data.TensorDataset(X_valid,Y_valid)
+t_dataset_test = torch.utils.data.TensorDataset(X_test,Y_test)
 
 loader_train = torch.utils.data.DataLoader(t_dataset_train, batch_size=value_batch_size, shuffle=False)
 loader_valid = torch.utils.data.DataLoader(t_dataset_valid, batch_size=value_batch_size, shuffle=False)
+loader_test = torch.utils.data.DataLoader(t_dataset_test, batch_size=value_batch_size, shuffle=False)
 
 t_done = True
 time.sleep(0.2)
@@ -552,6 +581,8 @@ print('\n\n')
 
 # conv_indim = args.indimension
 conv_indim = len(X_train[0][0][0])
+# print(conv_indim)
+# exit()
 
 pool_ks = 2
 
@@ -568,6 +599,12 @@ fully_1_outdim = args.foutdim
 
 fully_2_indim = fully_1_outdim
 fully_2_outdim = len(dataset_labels)
+
+fully_ann1_indim = len(X_train[0][0][0])*3
+fully_ann1_outdim = 150
+
+fully_ann2_indim = fully_1_outdim
+fully_ann2_outdim = len(dataset_labels)
 
 
 
@@ -592,6 +629,9 @@ class Net(nn.Module):
 
         self.fc1 = nn.Linear(fully_1_indim, fully_1_outdim, bias=False)
         self.fc2 = nn.Linear(fully_2_indim, fully_2_outdim, bias=False)
+
+        # self.fc1ann = nn.Linear(fully_ann1_indim, fully_1_outdim, bias=False)
+        # self.fc2ann = nn.Linear(fully_ann2_indim, fully_2_outdim, bias=False)
 
         self.sm = nn.Softmax(dim=-1)
 
@@ -695,7 +735,15 @@ class Net(nn.Module):
             f.close()
 
 
-#        x = self.sm(x)
+
+        # x = x.flatten(1)
+        # x = self.fc1ann(x)
+        # x = F.relu(x)
+        # x = self.fc2ann(x)
+
+
+
+        # x = self.sm(x)
 
         return x
 
@@ -757,7 +805,10 @@ train_dic = {
 }
 
 epoch_loss = 0
+epoch_loss_best = 0
 epoch_acc = 0
+epoch_acc_best = 0
+epoch_best = 0
 cnt_allbatches = 0
 tmp_cnt = 0
 tmp_cnt_t = 0
@@ -890,6 +941,14 @@ try:
         train_data[train_dic['valid_loss']].append(epoch_loss)
 
         epoch_acc = cnt/cnt_t
+
+        # if epoch_loss < epoch_loss_best or epoch_loss_best == 0:
+        if epoch_acc > epoch_acc_best:
+            model_best = copy.deepcopy(model)
+            epoch_best = epoch
+            epoch_loss_best = epoch_loss
+            epoch_acc_best = epoch_acc
+
         # training_acc.append(epoch_acc)
         num_trainepoch_effective += 1
         # print('\n\n\n')
@@ -899,7 +958,7 @@ except KeyboardInterrupt:
     print('\n\n\n\n\n')
 print('\n')
 
-save_model(model,'')
+save_model(model_best,'')
 
 
 
@@ -1154,7 +1213,7 @@ def convert_state_dict_type(state_dict, ttype=torch.FloatTensor): #3
 #╚██████╔╝╚██████╔╝██║  ██║██║ ╚████║   ██║       ██║     ╚██████╔╝███████║   ██║      ██║   ██║  ██║██║  ██║██║██║ ╚████║██║██║ ╚████║╚██████╔╝
 # ╚═══█═╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝       ╚═╝      ╚═════╝ ╚══════╝   ╚═╝      ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝
 
-model_quantized = copy.deepcopy(model)
+model_quantized = copy.deepcopy(model_best)
 model_quantized.quantization = True
 
 eval_batch_size = value_batch_size
@@ -1176,6 +1235,7 @@ model_quantized.eval()
 # Start with simple min/max range estimation and per-tensor quantization of weights
 model_quantized.qconfig = torch.quantization.get_default_qconfig('qnnpack')
 torch.backends.quantized.engine = 'qnnpack'
+# torch.backends.quantized.engine = 'fbgemm'
 # print(model_quantized.qconfig)
 
 torch.quantization.prepare(model_quantized, inplace=True)
@@ -1207,7 +1267,7 @@ save_model(model_quantized, '_quantized')
 
 
 
-plaincorder = False
+plaincorder = True
 f = open(session_path+"model_quantized.h", "w")
 
 f.write(f"#define PYTORCH_MODEL\n")
@@ -1242,6 +1302,9 @@ for param_tensor in model_quantized.state_dict():
             if ('conv' in param_tensor):
                 if plaincorder:
                     temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten()
+                    # print('AAAAAAAAAAAA')
+                    # print(model_quantized.state_dict()[param_tensor].int_repr())
+                    # print('AAAAAAAAAAAA')
                 else:
                     temp_data = model_quantized.state_dict()[param_tensor].int_repr().numpy().flatten('F').reshape((temp_size[1]*temp_size[3], temp_size[0])).flatten('F')
             elif ('fc1' in param_tensor):
@@ -1375,7 +1438,7 @@ f.close()
 #███████╗ ╚████╔╝ ██║  ██║███████╗╚██████╔╝██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║
 #╚══════╝  ╚═══╝  ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
 
-model.quantization = False
+model_best.quantization = False
 
 cnt = 0
 cnt_t = 0
@@ -1392,11 +1455,11 @@ cmatrix = np.zeros((len(data_files), fully_2_outdim, fully_2_outdim), dtype=int)
 # cmatrix = [[[[] for j in range(fully_2_outdim)] for k in range(fully_2_outdim)] for d in data_names]
 
 print('\n\n')
-printProgressBar(0, len(loader_valid), prefix = f'{color.NONE}Floating model evaluation{color.END}:', suffix = '', length = 40)
-for i, data in enumerate(loader_valid):
+printProgressBar(0, len(loader_test), prefix = f'{color.NONE}Floating model evaluation{color.END}:', suffix = '', length = 40)
+for i, data in enumerate(loader_test):
 
     inputs, labels = data
-    outputs = model(inputs.float())
+    outputs = model_best(inputs.float())
 
     list.clear(max_i)
     for o in outputs:
@@ -1405,7 +1468,7 @@ for i, data in enumerate(loader_valid):
         max_i.append(indx)
 
     for idx, tgt in zip(max_i, labels):
-        cmatrix[R_valid[cm_cnt]][idx][tgt] += 1
+        cmatrix[R_test[cm_cnt]][idx][tgt] += 1
         cm_cnt += 1
 
 
@@ -1414,9 +1477,9 @@ for i, data in enumerate(loader_valid):
     #         cnt = cnt + 1
     #     cnt_t = cnt_t + 1
 
-    printProgressBar(i + 1, len(loader_valid), prefix = f'{color.NONE}Floating model evaluation{color.END}:', suffix = '', length = 40)
+    printProgressBar(i + 1, len(loader_test), prefix = f'{color.NONE}Floating model evaluation{color.END}:', suffix = '', length = 40)
 
-# print('\nAccuracy on validation set with floating point model: %f' % (cnt/cnt_t))
+# print('\nAccuracy on testing set with floating point model: %f' % (cnt/cnt_t))
 #
 # cnt = 0
 # cnt_t = 0
@@ -1427,7 +1490,7 @@ for matrix in cmatrix:
         cnt += matrix[i][i]
         cnt_t += matrix.sum(axis=0)[i]
 
-print('\nAccuracy on validation set with floating point model: %f' % (cnt/cnt_t))
+print('\nAccuracy on testing set with floating point model: %f' % (cnt/cnt_t))
 
 print('\nConfusion matrix:')
 print(cmatrix_temp)
@@ -1449,8 +1512,8 @@ cmatrix_q = np.zeros((len(data_files), fully_2_outdim, fully_2_outdim), dtype=in
 # cmatrix_q = [[[[] for j in range(fully_2_outdim)] for k in range(fully_2_outdim)] for d in data_names]
 
 print('\n\n')
-printProgressBar(0, len(loader_valid), prefix = f'{color.NONE}Fixed model evaluation{color.END}:', suffix = '', length = 40)
-for i, data in enumerate(loader_valid):
+printProgressBar(0, len(loader_test), prefix = f'{color.NONE}Fixed model evaluation{color.END}:', suffix = '', length = 40)
+for i, data in enumerate(loader_test):
 
     inputs, labels = data
 
@@ -1463,7 +1526,7 @@ for i, data in enumerate(loader_valid):
         max_i.append(indx)
 
     for idx, tgt in zip(max_i, labels):
-        cmatrix_q[R_valid[cm_cnt]][idx][tgt] += 1
+        cmatrix_q[R_test[cm_cnt]][idx][tgt] += 1
         cm_cnt += 1
 
 
@@ -1472,7 +1535,7 @@ for i, data in enumerate(loader_valid):
     #         cnt_q = cnt_q + 1
     #     cnt_t_q = cnt_t_q + 1
 
-    printProgressBar(i + 1, len(loader_valid), prefix = f'{color.NONE}Fixed model evaluation{color.END}:', suffix = '', length = 40)
+    printProgressBar(i + 1, len(loader_test), prefix = f'{color.NONE}Fixed model evaluation{color.END}:', suffix = '', length = 40)
 
 for matrix in cmatrix_q:
     cmatrix_temp += matrix
@@ -1480,7 +1543,7 @@ for matrix in cmatrix_q:
         cnt_q += matrix[i][i]
         cnt_t_q += matrix.sum(axis=0)[i]
 
-print('\nAccuracy on validation set with fixed point model: %f' % (cnt_q/cnt_t_q))
+print('\nAccuracy on testing set with fixed point model: %f' % (cnt_q/cnt_t_q))
 
 # for i in range(fully_2_outdim):
 #     accmatrix_q[i] = (cmatrix_q[i][i]/cmatrix_q.sum(axis=0)[i])
@@ -1516,7 +1579,7 @@ model_quantized.debug = True
 
 # FIXME
 
-for i, data in enumerate(loader_valid):
+for i, data in enumerate(loader_test):
 
     inputs, labels = data
 
@@ -1538,7 +1601,7 @@ training_parameters = {
     'dataset_labels' : dataset_labels,
     'dataset_path' : dataset_path,
     'dataset_split' : dataset_split,
-    'separate_validation' : args.separate_validation,
+    # 'separate_testing' : args.separate_testing,
     'frame_len_sec' : frame_len_sec,
     'frame_shift_sec' : frame_shift_sec,
     'downscaling' : downscaling,
@@ -1562,13 +1625,15 @@ training_parameters = {
     'fully_2_indim' : fully_2_indim,
     'fully_2_outdim' : fully_2_outdim,
     'train_epoch' : num_trainepoch_effective,
+    'best_epoch' : epoch_best + 1,
     'optimizer' : str(optimizer).replace("\n","").replace("    ",", "),
     # 'learning_rate' : train_data[train_dic['learing_rate']][-1],
     'criterion' : str(criterion),
-    'training_acc' : train_data[train_dic['train_acc']][-1],
-    'validation_acc' : train_data[train_dic['valid_acc']][-1],
-    'training_loss' : train_data[train_dic['train_loss']][-1],
-    'validation_loss' : train_data[train_dic['valid_loss']][-1],
+    'qconfig' : str(torch.backends.quantized.engine),
+    'training_acc' : train_data[train_dic['train_acc']][epoch_best],
+    'validation_acc' : train_data[train_dic['valid_acc']][epoch_best],
+    'training_loss' : train_data[train_dic['train_loss']][epoch_best],
+    'validation_loss' : train_data[train_dic['valid_loss']][epoch_best],
     'floating_point_accuracy' : (cnt/cnt_t),
     'fixed_point_accuracy' : (cnt_q/cnt_t_q)
 }
