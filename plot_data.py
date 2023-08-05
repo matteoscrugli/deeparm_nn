@@ -119,14 +119,24 @@ for i in data_items:
         for i in range(history['samples']):
             if i + session_median > history['samples']:
                 break
-            x_temp.append(statistics.median(history['data'][0]['x'][i : i + session_median]))
-            y_temp.append(statistics.median(history['data'][0]['y'][i : i + session_median]))
-            z_temp.append(statistics.median(history['data'][0]['z'][i : i + session_median]))
+            try:
+                x_temp.append(statistics.median(history['data'][0]['x'][i : i + session_median]))
+                y_temp.append(statistics.median(history['data'][0]['y'][i : i + session_median]))
+                z_temp.append(statistics.median(history['data'][0]['z'][i : i + session_median]))
+            except:
+                x_temp.append(statistics.median(history['data']['x'][i : i + session_median]))
+                y_temp.append(statistics.median(history['data']['y'][i : i + session_median]))
+                z_temp.append(statistics.median(history['data']['z'][i : i + session_median]))
 
     else:
-        x_temp = history['data'][0]['x']
-        y_temp = history['data'][0]['y']
-        z_temp = history['data'][0]['z']
+        try:
+            x_temp = history['data'][0]['x']
+            y_temp = history['data'][0]['y']
+            z_temp = history['data'][0]['z']
+        except:
+            x_temp = history['data']['x']
+            y_temp = history['data']['y']
+            z_temp = history['data']['z']
 
     if session_calibrate:
         x = []
