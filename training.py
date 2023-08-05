@@ -62,7 +62,7 @@ parser.add_argument('-v','--separate_validation', dest='separate_validation', ac
 parser.add_argument('-C','--calibrate', dest='calibrate', nargs='*', help='calibration file')
 parser.add_argument('-G','--gforce', dest='gforce', default='', action='store_true', help='gforce remover')
 
-parser.add_argument('--flen', dest='flen', default=3.8, type=float, help="frame lenght in seconds")
+parser.add_argument('--flen', dest='flen', default=1.5, type=float, help="frame lenght in seconds")
 parser.add_argument('--fshift', dest='fshift', default=2.25, type=float, help="frame shift in seconds")
 parser.add_argument('--dscaling', dest='dscaling', type=int, default=5, help='random seed for dataset randomization')
 parser.add_argument('--median', dest='median', type=int, default=1, help='median value')
@@ -529,8 +529,14 @@ if normalization:
     for i in range(np.size(X_test,0)):
         X_test[i]=X_test[i]/np.max(np.absolute(X_test[i]))
 
-
-
+if False:
+    np.save('x_train.npy', X_train)
+    np.save('x_valid.npy', X_valid)
+    np.save('x_test.npy', X_test)
+    np.save('y_train.npy', Y_train)
+    np.save('y_valid.npy', Y_valid)
+    np.save('y_test.npy', Y_test)
+    exit()
 
 
 
